@@ -1,20 +1,11 @@
 //! `spo applicationcustomizer *` and `spo commandset *`.
 
 use crate::customaction::{custom_action_by_id, custom_actions};
+use crate::sp::{first, ne};
 use m365_core::prelude::*;
 
 const APP: &str = "ClientSideExtension.ApplicationCustomizer";
 const CMD: &str = "ClientSideExtension.ListViewCommandSet";
-
-fn ne(cx: &Cx, k: &str) -> Option<String> {
-    cx.s(k).filter(|s| !s.is_empty())
-}
-
-fn prop(v: &Value, k: &str) -> String {
-    v.get(k)
-        .map(to_js_string)
-        .unwrap_or_else(|| "undefined".into())
-}
 
 /// `a && x || b && y || c && z` over the identifier options.
 fn identifier(cx: &Cx) -> String {
@@ -29,12 +20,6 @@ fn identifier(cx: &Cx) -> String {
         Some(v) => to_js_string(v),
         None => "undefined".into(),
     }
-}
-
-fn first_of(cx: &Cx, keys: &[&str]) -> String {
-    keys.iter()
-        .find_map(|k| ne(cx, k))
-        .unwrap_or_else(|| "undefined".into())
 }
 
 fn humanize(v: Option<&Value>) -> Value {
@@ -230,7 +215,7 @@ pub async fn app_list(cx: &mut Cx) -> Result<()> {
 }
 
 pub async fn app_remove(cx: &mut Cx) -> Result<()> {
-    let who = first_of(cx, &["clientSideComponentId", "title", "id"]);
+    let who = first(cx, &["clientSideComponentId", "title", "id"]);
     if !cx.proceed(
         "force",
         &format!("Are you sure you want to remove the application customizer '{who}'?"),
@@ -250,7 +235,7 @@ pub async fn app_remove(cx: &mut Cx) -> Result<()> {
     };
     Request::delete(format!(
         "{web}/_api/{s}/UserCustomActions('{}')",
-        prop(&a, "Id")
+        u(&a, "Id")
     ))
     .spo_json()
     .send()
@@ -262,13 +247,13 @@ pub async fn app_set(cx: &mut Cx) -> Result<()> {
     let scope = ne(cx, "scope").unwrap_or_else(|| "All".into());
     cx.verbose_log(&format!(
         "Getting application customizer {} to update...",
-        first_of(cx, &["title", "clientSideComponentId", "id"])
+        first(cx, &["title", "clientSideComponentId", "id"])
     ));
     let a = resolve(cx, Some(&scope), APP, "application customizer", true).await?;
     let web = cx.u("webUrl");
     cx.verbose_log(&format!(
         "Updating application customizer with ID '{}' on the site '{web}'...",
-        prop(&a, "Id")
+        u(&a, "Id")
     ));
     let mut b = obj! { "HostProperties": ?cx.val("hostProperties").cloned() };
     for (k, o) in [
@@ -290,7 +275,7 @@ pub async fn app_set(cx: &mut Cx) -> Result<()> {
     };
     Request::post(format!(
         "{web}/_api/{s}/UserCustomActions('{}')",
-        prop(&a, "Id")
+        u(&a, "Id")
     ))
     .spo_json()
     .header("X-HTTP-Method", "MERGE")
@@ -344,7 +329,7 @@ pub async fn cmd_add(cx: &mut Cx) -> Result<()> {
 pub async fn cmd_get(cx: &mut Cx) -> Result<()> {
     cx.verbose_log(&format!(
         "Attempt to get a specific Command Set by property {}.",
-        first_of(cx, &["title", "id", "clientSideComponentId"])
+        first(cx, &["title", "id", "clientSideComponentId"])
     ));
     let web = cx.u("webUrl");
     let scope = cx.s("scope");
@@ -439,7 +424,7 @@ fn web_or_site(a: &Value) -> &'static str {
 }
 
 pub async fn cmd_remove(cx: &mut Cx) -> Result<()> {
-    let who = first_of(cx, &["clientSideComponentId", "title", "id"]);
+    let who = first(cx, &["clientSideComponentId", "title", "id"]);
     cx.verbose_log(&format!(
         "Removing ListView Command Set {who} to site '{}'...",
         cx.u("webUrl")
@@ -456,7 +441,7 @@ pub async fn cmd_remove(cx: &mut Cx) -> Result<()> {
         "{}/_api/{}/UserCustomActions('{}')",
         cx.u("webUrl"),
         web_or_site(&a),
-        eqp(&prop(&a, "Id"))
+        eqp(&u(&a, "Id"))
     ))
     .spo_json()
     .send()
@@ -467,7 +452,7 @@ pub async fn cmd_remove(cx: &mut Cx) -> Result<()> {
 pub async fn cmd_set(cx: &mut Cx) -> Result<()> {
     cx.verbose_log(&format!(
         "Updating ListView Command Set {} to site '{}'...",
-        first_of(cx, &["id", "title", "clientSideComponentId"]),
+        first(cx, &["id", "title", "clientSideComponentId"]),
         cx.u("webUrl")
     ));
     let scope = ne(cx, "scope").unwrap_or_else(|| "All".into());
@@ -495,7 +480,7 @@ pub async fn cmd_set(cx: &mut Cx) -> Result<()> {
         "{}/_api/{}/UserCustomActions('{}')",
         cx.u("webUrl"),
         web_or_site(&a),
-        eqp(&prop(&a, "Id"))
+        eqp(&u(&a, "Id"))
     ))
     .spo_json()
     .header("X-HTTP-Method", "MERGE")

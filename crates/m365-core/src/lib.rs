@@ -44,9 +44,3 @@ pub use error::{Error, Result};
 pub use http::{Method, Request};
 pub use json::{Obj, json};
 pub use serde_json::Value;
-
-/// SharePoint CSOM property types (`src/data/csom.json`).
-pub fn csom_defs() -> &'static Value {
-    static C: std::sync::OnceLock<Value> = std::sync::OnceLock::new();
-    C.get_or_init(|| serde_json::from_str(include_str!("data/csom.json")).unwrap_or(Value::Null))
-}

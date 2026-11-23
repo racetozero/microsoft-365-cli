@@ -373,9 +373,18 @@ pub struct Help {
 /// Every suite's table.
 pub static ALL: &[&[Help]] = &[${names.map(n => `${n}::HELP`).join(', ')}];
 
-/// The help of a command by its name (not an alias).
+/// The help of a command by its name (not an alias). The index is built
+/// once, as \`--help --agent\` looks up every command.
 pub fn find(name: &str) -> Option<&'static Help> {
-    ALL.iter().flat_map(|s| s.iter()).find(|h| h.name == name)
+    static BY_NAME: std::sync::LazyLock<std::collections::HashMap<&str, &Help>> =
+        std::sync::LazyLock::new(|| {
+            let mut m = std::collections::HashMap::new();
+            for h in ALL.iter().flat_map(|s| s.iter()) {
+                m.entry(h.name).or_insert(h);
+            }
+            m
+        });
+    BY_NAME.get(name).copied()
 }
 `);
 console.error(`help: ${manifest.commands.length - missing} commands in ${names.length} files; ${missing} without a page; ${noDesc} options without a description; ${noExamples} commands without examples`);

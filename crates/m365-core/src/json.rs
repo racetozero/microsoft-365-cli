@@ -107,14 +107,7 @@ fn write_value(out: &mut String, v: &Value, indent: &str, level: usize) {
     match v {
         Value::Null => out.push_str("null"),
         Value::Bool(b) => out.push_str(if *b { "true" } else { "false" }),
-        Value::Number(n) => {
-            let s = num(n);
-            if s == "NaN" || s.ends_with("Infinity") {
-                out.push_str("null")
-            } else {
-                out.push_str(&s)
-            }
-        }
+        Value::Number(n) => out.push_str(&num(n)),
         Value::String(s) => escape_into(out, s),
         Value::Array(a) => {
             if a.is_empty() {
@@ -210,9 +203,31 @@ pub fn truthy(v: &Value) -> bool {
     }
 }
 
-/// Optional-value truthiness (`undefined` is falsy).
-pub fn truthy_opt(v: Option<&Value>) -> bool {
-    v.is_some_and(truthy)
+/// `{ ...a, ...b }`: the keys of `b` over those of `a` (an object, or none).
+pub fn merge(a: Value, b: &Value) -> Value {
+    let mut a = match a {
+        Value::Object(o) => o,
+        _ => Obj::new(),
+    };
+    if let Some(b) = b.as_object() {
+        for (k, v) in b {
+            a.insert(k.clone(), v.clone());
+        }
+    }
+    Value::Object(a)
+}
+
+/// `o[k] = v`, where `v` may be `undefined`: the key is then dropped, as
+/// `JSON.stringify` leaves it out.
+pub fn assign(o: &mut Obj, k: &str, v: Option<Value>) {
+    match v {
+        Some(v) => {
+            o.insert(k.to_string(), v);
+        }
+        None => {
+            o.shift_remove(k);
+        }
+    }
 }
 
 /// `JSON.parse` that tolerates a leading byte-order mark.
@@ -279,24 +294,6 @@ pub fn js_len(s: &str) -> usize {
     s.encode_utf16().count()
 }
 
-pub trait ValueExt {
-    fn str_of(&self, key: &str) -> Option<&str>;
-    fn string_of(&self, key: &str) -> String;
-}
-
-impl ValueExt for Value {
-    fn str_of(&self, key: &str) -> Option<&str> {
-        self.get(key).and_then(Value::as_str)
-    }
-
-    fn string_of(&self, key: &str) -> String {
-        match self.get(key) {
-            None => "undefined".into(),
-            Some(v) => to_js_string(v),
-        }
-    }
-}
-
 /// Stands in for a JavaScript property set to `undefined`: the key keeps its
 /// position, `JSON.stringify` would drop it, and markdown output prints it as
 /// `undefined` (the heading's `??` skips it).
@@ -330,27 +327,12 @@ macro_rules! obj {
     }};
 }
 
-/// Gets a nested value by keys, JavaScript style (`a.b.c`), returning `None`
-/// when any step is missing.
-pub fn path<'a>(v: &'a Value, keys: &[&str]) -> Option<&'a Value> {
-    let mut cur = v;
-    for k in keys {
-        cur = cur.get(*k)?;
-    }
-    Some(cur)
-}
-
 /// `value[key]` as an array (empty when missing).
 pub fn arr<'a>(v: &'a Value, key: &str) -> &'a [Value] {
     v.get(key)
         .and_then(Value::as_array)
         .map(Vec::as_slice)
         .unwrap_or(&[])
-}
-
-/// `value.value` of an OData collection response.
-pub fn values(v: &Value) -> Vec<Value> {
-    arr(v, "value").to_vec()
 }
 
 /// String of `value[key]`, empty when missing.

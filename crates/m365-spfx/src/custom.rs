@@ -2058,7 +2058,8 @@ fn ts_rule(rule: &Rule, p: &Project, findings: &mut Vec<Finding>) -> Result<()> 
         let Some(f) = &p.es_lint_rc_js else {
             return Ok(());
         };
-        let Some(src) = f.source.as_deref() else {
+        // `TsFile.sourceFile` is undefined for an empty file
+        let Some(src) = f.source.as_deref().filter(|s| !s.is_empty()) else {
             return Ok(());
         };
         let toks = tslex::tokenize(src);
@@ -2107,7 +2108,7 @@ fn ts_rule(rule: &Rule, p: &Project, findings: &mut Vec<Finding>) -> Result<()> 
         occurrences.push(ts_occ(rule.resolution(), f, p, node.start));
     } else {
         for f in &p.ts_files {
-            let Some(src) = f.source.as_deref() else {
+            let Some(src) = f.source.as_deref().filter(|s| !s.is_empty()) else {
                 continue;
             };
             let toks = tslex::tokenize(src);

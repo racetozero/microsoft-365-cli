@@ -229,20 +229,14 @@ pub async fn app_list(cx: &mut Cx) -> Result<()> {
             .get("displayName")
             .cloned();
         if let Some(o) = a.as_object_mut() {
-            match d {
-                Some(d) => o.insert("displayName".into(), d),
-                None => o.shift_remove("displayName"),
-            };
+            m365_core::json::assign(o, "displayName", d);
         }
     }
     cx.log(Value::Array(apps))
 }
 
 pub async fn app_owner_set(cx: &mut Cx) -> Result<()> {
-    let who = cx
-        .s("userId")
-        .or_else(|| cx.s("userName"))
-        .unwrap_or_else(|| "undefined".into());
+    let who = cx.first_u(&["userId", "userName"]);
     cx.verbose_log(&format!(
         "Setting new owner {who} for Power Apps app {}...",
         cx.u("appName")
@@ -578,10 +572,7 @@ pub fn copy_display_name(items: &mut [Value]) -> Result<()> {
             .get("displayName")
             .cloned();
         if let Some(o) = i.as_object_mut() {
-            match d {
-                Some(d) => o.insert("displayName".into(), d),
-                None => o.shift_remove("displayName"),
-            };
+            m365_core::json::assign(o, "displayName", d);
         }
     }
     Ok(())

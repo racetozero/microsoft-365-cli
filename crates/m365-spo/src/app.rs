@@ -1,18 +1,9 @@
 //! `spo app *`.
 
+use crate::sp::{ne, opt};
 use m365_core::prelude::*;
 use m365_core::ut::spo;
 use m365_core::ut::url as urlutil;
-
-fn ne(cx: &Cx, k: &str) -> Option<String> {
-    cx.s(k).filter(|s| !s.is_empty())
-}
-
-fn opt(cx: &Cx, k: &str) -> String {
-    cx.val(k)
-        .map(to_js_string)
-        .unwrap_or_else(|| "undefined".into())
-}
 
 fn scope(cx: &Cx) -> String {
     ne(cx, "appCatalogScope")

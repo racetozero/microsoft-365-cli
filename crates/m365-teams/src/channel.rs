@@ -229,39 +229,25 @@ async fn member_id(cx: &Cx, tid: &str, cid: &str) -> Result<String> {
         })
         .cloned()
         .collect();
-    match found.len() {
-        0 => Err(Error::msg(
-            "The specified member does not exist in the Microsoft Teams channel",
-        )),
-        1 => Ok(u(&found[0], "id")),
-        _ => Ok(u(
-            &cx.handle_multiple_results(
-                &format!(
-                    "Multiple Microsoft Teams channel members with name {} found.",
-                    cx.u("userName")
-                ),
-                &util::array_to_hash_table("id", &found),
-            )?,
+    Ok(u(
+        &m365_core::runner::pick_one(
+            &found,
             "id",
-        )),
-    }
+            Error::msg("The specified member does not exist in the Microsoft Teams channel"),
+            &format!(
+                "Multiple Microsoft Teams channel members with name {} found.",
+                cx.u("userName")
+            ),
+        )?,
+        "id",
+    ))
 }
 
 pub async fn member_remove(cx: &mut Cx) -> Result<()> {
     if !cx.bool("force") {
-        let user = cx
-            .s("userName")
-            .or_else(|| cx.s("userId"))
-            .or_else(|| cx.s("id"))
-            .unwrap_or_else(|| "undefined".into());
-        let team = cx
-            .s("teamName")
-            .or_else(|| cx.s("teamId"))
-            .unwrap_or_else(|| "undefined".into());
-        let ch = cx
-            .s("channelName")
-            .or_else(|| cx.s("channelId"))
-            .unwrap_or_else(|| "undefined".into());
+        let user = cx.first_u(&["userName", "userId", "id"]);
+        let team = cx.first_u(&["teamName", "teamId"]);
+        let ch = cx.first_u(&["channelName", "channelId"]);
         if !cx.confirm(&format!("Are you sure you want to remove the member {user} from the channel {ch} in team {team}?"))? {
             return Ok(());
         }
@@ -329,14 +315,8 @@ pub async fn member_set(cx: &mut Cx) -> Result<()> {
 }
 
 pub async fn remove(cx: &mut Cx) -> Result<()> {
-    let ch = cx
-        .s("name")
-        .or_else(|| cx.s("id"))
-        .unwrap_or_else(|| "undefined".into());
-    let team = cx
-        .s("teamId")
-        .or_else(|| cx.s("teamName"))
-        .unwrap_or_else(|| "undefined".into());
+    let ch = cx.first_u(&["name", "id"]);
+    let team = cx.first_u(&["teamId", "teamName"]);
     if !cx.proceed(
         "force",
         &format!("Are you sure you want to remove the channel {ch} from team {team}?"),
@@ -465,15 +445,11 @@ fn current_user_email() -> String {
     auth::jwt::user_name(&auth::default_access_token().unwrap_or_default()).to_lowercase()
 }
 
-fn pick_chat(cx: &Cx, chats: Vec<Value>, none: &str, many: &str) -> Result<String> {
-    match chats.len() {
-        0 => Err(Error::msg(none)),
-        1 => Ok(u(&chats[0], "id")),
-        _ => Ok(u(
-            &cx.handle_multiple_results(many, &util::array_to_hash_table("id", &chats))?,
-            "id",
-        )),
-    }
+fn pick_chat(chats: Vec<Value>, none: &str, many: &str) -> Result<String> {
+    Ok(u(
+        &m365_core::runner::pick_one(&chats, "id", Error::msg(none), many)?,
+        "id",
+    ))
 }
 
 pub async fn chat_get(cx: &mut Cx) -> Result<()> {
@@ -484,7 +460,6 @@ pub async fn chat_get(cx: &mut Cx) -> Result<()> {
         all.extend(emails(&p));
         let chats = chats_by_participants(&all).await?;
         pick_chat(
-            cx,
             chats,
             "No chat conversation was found with these participants.",
             "Multiple chat conversations with these participants found.",
@@ -492,7 +467,6 @@ pub async fn chat_get(cx: &mut Cx) -> Result<()> {
     } else {
         let chats = chats_by_name(&cx.u("name")).await?;
         pick_chat(
-            cx,
             chats,
             "No chat conversation was found with this name.",
             "Multiple chat conversations with this name found.",
@@ -571,11 +545,7 @@ pub async fn chat_member_list(cx: &mut Cx) -> Result<()> {
 }
 
 pub async fn chat_member_remove(cx: &mut Cx) -> Result<()> {
-    let who = cx
-        .s("id")
-        .or_else(|| cx.s("userId"))
-        .or_else(|| cx.s("userName"))
-        .unwrap_or_else(|| "undefined".into());
+    let who = cx.first_u(&["id", "userId", "userName"]);
     let chat = cx.u("chatId");
     if !cx.proceed(
         "force",
@@ -724,7 +694,6 @@ pub async fn chat_message_send(cx: &mut Cx) -> Result<()> {
             }
         } else {
             pick_chat(
-                cx,
                 chats,
                 "",
                 "Multiple chat conversations with this name found.",
@@ -733,7 +702,6 @@ pub async fn chat_message_send(cx: &mut Cx) -> Result<()> {
     } else {
         let chats = chats_by_name(&cx.u("chatName")).await?;
         pick_chat(
-            cx,
             chats,
             "No chat conversation was found with this name.",
             "Multiple chat conversations with this name found.",

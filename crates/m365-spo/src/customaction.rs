@@ -248,14 +248,6 @@ pub async fn clear(cx: &mut Cx) -> Result<()> {
     Ok(())
 }
 
-async fn pick(cx: &Cx, list: Vec<Value>, none: String, many: String) -> Result<Value> {
-    match list.len() {
-        0 => Err(Error::msg(none)),
-        1 => Ok(list.into_iter().next().unwrap()),
-        _ => cx.handle_multiple_results(&many, &util::array_to_hash_table("Id", &list)),
-    }
-}
-
 pub async fn get(cx: &mut Cx) -> Result<()> {
     let web = cx.u("webUrl");
     let scope = cx.s("scope");
@@ -275,13 +267,12 @@ pub async fn get(cx: &mut Cx) -> Result<()> {
             Some(&format!("Title eq '{}'", eqp(&t))),
         )
         .await?;
-        pick(
-            cx,
-            l,
-            format!("No user custom action with title '{t}' found"),
-            format!("Multiple user custom actions with title '{t}' found."),
-        )
-        .await?
+        m365_core::runner::pick_one(
+            &l,
+            "Id",
+            Error::msg(format!("No user custom action with title '{t}' found")),
+            &format!("Multiple user custom actions with title '{t}' found."),
+        )?
     } else {
         let c = cx.u("clientSideComponentId");
         let l = custom_actions(
@@ -290,13 +281,14 @@ pub async fn get(cx: &mut Cx) -> Result<()> {
             Some(&format!("ClientSideComponentId eq guid'{c}'")),
         )
         .await?;
-        pick(
-            cx,
-            l,
-            format!("No user custom action with ClientSideComponentId '{c}' found"),
-            format!("Multiple user custom actions with ClientSideComponentId '{c}' found."),
-        )
-        .await?
+        m365_core::runner::pick_one(
+            &l,
+            "Id",
+            Error::msg(format!(
+                "No user custom action with ClientSideComponentId '{c}' found"
+            )),
+            &format!("Multiple user custom actions with ClientSideComponentId '{c}' found."),
+        )?
     };
     if truthy(&a) {
         cx.log(summary(&a, humanize_scope(a.get("Scope"))))?;
@@ -336,13 +328,12 @@ async fn remove_scoped(cx: &Cx, scope: &str) -> Result<Value> {
             let l =
                 custom_actions(&web, Some(scope), Some(&format!("Title eq '{}'", eqp(&t)))).await?;
             u(
-                &pick(
-                    cx,
-                    l,
-                    format!("No user custom action with title '{t}' found"),
-                    format!("Multiple user custom actions with title '{t}' found."),
-                )
-                .await?,
+                &m365_core::runner::pick_one(
+                    &l,
+                    "Id",
+                    Error::msg(format!("No user custom action with title '{t}' found")),
+                    &format!("Multiple user custom actions with title '{t}' found."),
+                )?,
                 "Id",
             )
         }
@@ -459,18 +450,9 @@ pub fn field_add_field(i: u16, v: &Value, _o: &Obj) -> FieldCheck {
 }
 
 fn list_rest(cx: &Cx, web: &str) -> String {
-    if let Some(i) = cx.s("listId").filter(|s| !s.is_empty()) {
-        format!("lists(guid'{}')/", eqp(&i))
-    } else if let Some(t) = cx.s("listTitle").filter(|s| !s.is_empty()) {
-        format!("lists/getByTitle('{}')/", eqp(&t))
-    } else if let Some(l) = cx.s("listUrl").filter(|s| !s.is_empty()) {
-        format!(
-            "GetList('{}')/",
-            eqp(&urlutil::get_server_relative_path(web, &l))
-        )
-    } else {
-        String::new()
-    }
+    sp::list_segment(cx, web, sp::LIST, "getByTitle")
+        .map(|s| format!("{s}/"))
+        .unwrap_or_default()
 }
 
 pub async fn field_add(cx: &mut Cx) -> Result<()> {

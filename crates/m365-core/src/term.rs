@@ -50,17 +50,6 @@ pub fn yellow(s: &str) -> String {
 pub fn blue(s: &str) -> String {
     wrap(s, "34", "39")
 }
-pub fn cyan(s: &str) -> String {
-    wrap(s, "36", "39")
-}
 pub fn gray(s: &str) -> String {
     wrap(s, "90", "39")
-}
-
-pub fn stdin_is_tty() -> bool {
-    std::io::stdin().is_terminal()
-}
-
-pub fn stdout_is_tty() -> bool {
-    std::io::stdout().is_terminal()
 }

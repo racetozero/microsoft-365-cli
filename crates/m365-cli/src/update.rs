@@ -424,7 +424,9 @@ fn replace_current_exe(staged: &Path) -> Result<(), String> {
         .map_err(|e| format!("cannot find the m365 executable: {e}"))?;
     let dir = exe.parent().ok_or("the m365 executable has no folder")?;
     let tmp = dir.join(format!(".m365.update.{}", std::process::id()));
+    // a failed step removes the staged copy
     let denied = |e: std::io::Error| {
+        let _ = std::fs::remove_file(&tmp);
         format!(
             "cannot write to {} ({e}); rerun the installer with permission to that folder, or set M365_SELF_UPDATE_COMMAND",
             dir.display()
@@ -437,13 +439,16 @@ fn replace_current_exe(staged: &Path) -> Result<(), String> {
         let _ = std::fs::set_permissions(&tmp, std::fs::Permissions::from_mode(0o755));
     }
     #[cfg(windows)]
+    let old = exe.with_extension("exe.old");
+    #[cfg(windows)]
     {
-        let old = exe.with_extension("exe.old");
         let _ = std::fs::remove_file(&old);
         std::fs::rename(&exe, &old).map_err(denied)?;
     }
     std::fs::rename(&tmp, &exe).map_err(|e| {
-        let _ = std::fs::remove_file(&tmp);
+        // put the old executable back, so a failed update leaves m365 in place
+        #[cfg(windows)]
+        let _ = std::fs::rename(&old, &exe);
         denied(e)
     })
 }
@@ -544,7 +549,14 @@ pub fn start(args: &[String]) -> Option<Check> {
         return None;
     }
     let cache = read_cache();
+    let current = current_version();
     let refresh = needs_refresh(cache.as_ref(), now()).then(|| {
+        // record the attempt first, so an offline or slow network does not
+        // make every following command wait for GitHub again
+        let known = cache
+            .as_ref()
+            .map_or_else(|| current.clone(), |(v, _)| v.clone());
+        let _ = write_cache(&known);
         std::thread::spawn(|| {
             let Ok(rt) = tokio::runtime::Builder::new_current_thread()
                 .enable_all()
@@ -561,7 +573,6 @@ pub fn start(args: &[String]) -> Option<Check> {
             });
         })
     });
-    let current = current_version();
     Some(Check {
         latest: cache.map(|(v, _)| v).filter(|v| *v > current),
         refresh,

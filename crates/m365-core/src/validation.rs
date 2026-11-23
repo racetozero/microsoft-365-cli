@@ -97,17 +97,18 @@ pub fn is_valid_guid(guid: &str) -> bool {
     GUID.is_match(guid) || guid.to_lowercase().trim() == "@meid"
 }
 
-pub fn is_valid_guid_array(s: &str) -> Valid {
-    let bad: Vec<&str> = s
-        .split(',')
-        .map(str::trim)
-        .filter(|g| !is_valid_guid(g))
-        .collect();
+/// The comma-separated items that fail `ok`, joined for the message.
+fn invalid_items(s: &str, ok: fn(&str) -> bool) -> Valid {
+    let bad: Vec<&str> = s.split(',').map(str::trim).filter(|i| !ok(i)).collect();
     if bad.is_empty() {
         Valid::Yes
     } else {
         Valid::Msg(bad.join(", "))
     }
+}
+
+pub fn is_valid_guid_array(s: &str) -> Valid {
+    invalid_items(s, is_valid_guid)
 }
 
 pub fn is_valid_teams_channel_id(s: &str) -> bool {
@@ -123,16 +124,7 @@ pub fn is_valid_user_principal_name(upn: &str) -> bool {
 }
 
 pub fn is_valid_user_principal_name_array(s: &str) -> Valid {
-    let bad: Vec<&str> = s
-        .split(',')
-        .map(str::trim)
-        .filter(|u| !is_valid_user_principal_name(u))
-        .collect();
-    if bad.is_empty() {
-        Valid::Yes
-    } else {
-        Valid::Msg(bad.join(", "))
-    }
+    invalid_items(s, is_valid_user_principal_name)
 }
 
 pub fn is_valid_positive_integer(s: &str) -> bool {
@@ -141,16 +133,7 @@ pub fn is_valid_positive_integer(s: &str) -> bool {
 }
 
 pub fn is_valid_positive_integer_array(s: &str) -> Valid {
-    let bad: Vec<&str> = s
-        .split(',')
-        .map(str::trim)
-        .filter(|u| !is_valid_positive_integer(u))
-        .collect();
-    if bad.is_empty() {
-        Valid::Yes
-    } else {
-        Valid::Msg(bad.join(", "))
-    }
+    invalid_items(s, is_valid_positive_integer)
 }
 
 pub fn is_valid_iso_date(s: &str) -> bool {
@@ -266,175 +249,6 @@ pub fn is_valid_theme(s: &str) -> bool {
         o.get(*p)
             .is_some_and(|x| HEX_COLOR.is_match(&crate::json::to_js_string(x)))
     })
-}
-
-pub fn is_javascript_reserved_word(input: &str) -> bool {
-    const WORDS: &[&str] = &[
-        "arguments",
-        "await",
-        "break",
-        "case",
-        "catch",
-        "class",
-        "const",
-        "continue",
-        "debugger",
-        "default",
-        "delete",
-        "do",
-        "else",
-        "enum",
-        "eval",
-        "export",
-        "extends",
-        "false",
-        "finally",
-        "for",
-        "function",
-        "if",
-        "implements",
-        "import",
-        "in",
-        "instanceof",
-        "interface",
-        "let",
-        "new",
-        "null",
-        "package",
-        "private",
-        "protected",
-        "public",
-        "return",
-        "static",
-        "super",
-        "switch",
-        "this",
-        "throw",
-        "true",
-        "try",
-        "typeof",
-        "var",
-        "void",
-        "while",
-        "with",
-        "yield",
-        "Array",
-        "Date",
-        "hasOwnProperty",
-        "Infinity",
-        "isFinite",
-        "isNaN",
-        "isPrototypeOf",
-        "length",
-        "Math",
-        "NaN",
-        "name",
-        "Number",
-        "Object",
-        "prototype",
-        "String",
-        "toString",
-        "undefined",
-        "valueOf",
-        "alert",
-        "all",
-        "anchor",
-        "anchors",
-        "area",
-        "assign",
-        "blur",
-        "button",
-        "checkbox",
-        "clearInterval",
-        "clearTimeout",
-        "clientInformation",
-        "close",
-        "closed",
-        "confirm",
-        "constructor",
-        "crypto",
-        "decodeURI",
-        "decodeURIComponent",
-        "defaultStatus",
-        "document",
-        "element",
-        "elements",
-        "embed",
-        "embeds",
-        "encodeURI",
-        "encodeURIComponent",
-        "escape",
-        "event",
-        "fileUpload",
-        "focus",
-        "form",
-        "forms",
-        "frame",
-        "innerHeight",
-        "innerWidth",
-        "layer",
-        "layers",
-        "link",
-        "location",
-        "mimeTypes",
-        "navigate",
-        "navigator",
-        "frames",
-        "frameRate",
-        "hidden",
-        "history",
-        "image",
-        "images",
-        "offscreenBuffering",
-        "open",
-        "opener",
-        "option",
-        "outerHeight",
-        "outerWidth",
-        "packages",
-        "pageXOffset",
-        "pageYOffset",
-        "parent",
-        "parseFloat",
-        "parseInt",
-        "password",
-        "pkcs11",
-        "plugin",
-        "prompt",
-        "propertyIsEnum",
-        "radio",
-        "reset",
-        "screenX",
-        "screenY",
-        "scroll",
-        "secure",
-        "select",
-        "self",
-        "setInterval",
-        "setTimeout",
-        "status",
-        "submit",
-        "taint",
-        "text",
-        "textarea",
-        "top",
-        "unescape",
-        "untaint",
-        "window",
-        "onblur",
-        "onclick",
-        "onerror",
-        "onfocus",
-        "onkeydown",
-        "onkeypress",
-        "onkeyup",
-        "onmouseover",
-        "onload",
-        "onmouseup",
-        "onmousedown",
-        "onsubmit",
-    ];
-    !input.is_empty() && !input.split('.').all(|v| !WORDS.contains(&v))
 }
 
 /// `validation.isDateInRange(date, monthOffset)`.

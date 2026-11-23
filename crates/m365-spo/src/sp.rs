@@ -6,13 +6,32 @@ use m365_core::prelude::*;
 use m365_core::ut::spo::application_name;
 use m365_core::ut::url as urlutil;
 
-/// The `<Request ...>` envelope every CSOM call uses.
-pub fn request(actions: &str, object_paths: &str) -> String {
-    format!(
-        r#"<Request AddExpandoFieldTypeSuffix="true" SchemaVersion="15.0.0.0" LibraryVersion="16.0.0.0" ApplicationName="{}" xmlns="http://schemas.microsoft.com/sharepoint/clientquery/2009"><Actions>{actions}</Actions><ObjectPaths>{object_paths}</ObjectPaths></Request>"#,
-        application_name()
-    )
+/// The option as a string when it is truthy and not empty.
+pub(crate) fn ne(cx: &Cx, k: &str) -> Option<String> {
+    cx.s(k).filter(|s| !s.is_empty())
 }
+
+/// The option as JavaScript prints it, `"undefined"` when missing.
+pub(crate) fn opt(cx: &Cx, k: &str) -> String {
+    cx.val(k)
+        .map(to_js_string)
+        .unwrap_or_else(|| "undefined".into())
+}
+
+/// The first of `keys` that `ne` returns, or `"undefined"`.
+pub(crate) fn first(cx: &Cx, keys: &[&str]) -> String {
+    keys.iter()
+        .find_map(|k| ne(cx, k))
+        .unwrap_or_else(|| "undefined".into())
+}
+
+/// The option escaped for a CSOM XML body.
+pub(crate) fn ex(cx: &Cx, k: &str) -> String {
+    util::escape_xml_value(cx.val(k))
+}
+
+/// The `<Request ...>` envelope every CSOM call uses.
+pub use m365_core::ut::spo::csom as request;
 
 /// POSTs a CSOM body to `ProcessQuery` and parses the response (`JSON.parse(res)`).
 pub async fn post(web: &str, digest: &str, body: String) -> Result<Vec<Value>> {
@@ -323,10 +342,7 @@ pub fn friendly_role(r: &mut Value) -> Result<()> {
         .map(|k| Value::from(*k));
     if let Some(o) = r.as_object_mut() {
         o.insert("BasePermissionsValue".into(), Value::Array(perms.parse()));
-        match kind {
-            Some(k) => o.insert("RoleTypeKindValue".into(), k),
-            None => o.shift_remove("RoleTypeKindValue"),
-        };
+        m365_core::json::assign(o, "RoleTypeKindValue", kind);
     }
     Ok(())
 }
@@ -496,24 +512,30 @@ pub async fn folder_server_relative_url(
     Ok(u(&r, "ServerRelativeUrl"))
 }
 
-/// `listId` / `listTitle` / `listUrl` as a REST path segment after `_api/web`.
+/// The options that name a list in most commands.
+pub const LIST: [&str; 3] = ["listId", "listTitle", "listUrl"];
+
+/// The list that the `id`, `title` or `url` option names, as a REST path
+/// segment after `_api/web`: `lists(guid'…')`, `lists/{by_title}('…')` or
+/// `GetList('…')`; `None` when none is set. `by_title` keeps the casing of
+/// each upstream command.
 pub fn list_segment(
+    cx: &Cx,
     web: &str,
-    id: Option<String>,
-    title: Option<String>,
-    url: Option<String>,
-) -> String {
-    if let Some(i) = id {
-        format!("lists(guid'{}')", eqp(&i))
-    } else if let Some(t) = title {
-        format!("lists/getByTitle('{}')", eqp(&t))
-    } else if let Some(l) = url {
-        format!(
-            "GetList('{}')",
-            eqp(&urlutil::get_server_relative_path(web, &l))
-        )
+    [id, title, url]: [&str; 3],
+    by_title: &str,
+) -> Option<String> {
+    if let Some(i) = ne(cx, id) {
+        Some(format!("lists(guid'{}')", eqp(&i)))
+    } else if let Some(t) = ne(cx, title) {
+        Some(format!("lists/{by_title}('{}')", eqp(&t)))
     } else {
-        String::new()
+        ne(cx, url).map(|l| {
+            format!(
+                "GetList('{}')",
+                eqp(&urlutil::get_server_relative_path(web, &l))
+            )
+        })
     }
 }
 

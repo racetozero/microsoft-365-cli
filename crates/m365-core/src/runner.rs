@@ -110,10 +110,11 @@ fn command_flags(meta: &CmdMeta, raw: &[String]) -> (Flags, Vec<&'static str>) {
                 f.strings.insert(s.to_string());
             }
             for b in l.booleans {
-                if raw
-                    .iter()
-                    .any(|a| *a == format!("--{b}") || *a == format!("-{b}"))
-                {
+                if raw.iter().any(|a| {
+                    a.strip_prefix("--")
+                        .or_else(|| a.strip_prefix('-'))
+                        .is_some_and(|f| f == *b)
+                }) {
                     f.bools.insert(b.to_string());
                 }
                 booleans.push(b);
@@ -126,6 +127,15 @@ fn command_flags(meta: &CmdMeta, raw: &[String]) -> (Flags, Vec<&'static str>) {
         }
     }
     (f, booleans)
+}
+
+/// The issues as one message, a line each.
+fn render(issues: &[schema::Issue], missing_as_required: bool) -> String {
+    issues
+        .iter()
+        .map(|i| i.render(missing_as_required))
+        .collect::<Vec<_>>()
+        .join(EOL)
 }
 
 fn positional_name(p: &[Value]) -> String {
@@ -148,53 +158,19 @@ fn close_with_error(
     }
     // failures the command did not translate go through the helper its
     // commandAction uses; without one, upstream prints `${error}`
-    let converted;
-    let error = match (
-        error,
-        meta.map(|m| m.errors).unwrap_or(manifest::ErrStyle::None),
-    ) {
-        (
-            Error::Http(_) | Error::Network(_) | Error::Js(_) | Error::Syntax(_) | Error::Thrown(_),
-            manifest::ErrStyle::Json,
-        ) => {
-            converted = error.clone().odata_json();
-            &converted
-        }
-        (
-            Error::Http(_) | Error::Network(_) | Error::Js(_) | Error::Syntax(_) | Error::Thrown(_),
-            manifest::ErrStyle::Viva,
-        ) => {
-            converted = error.clone().viva();
-            &converted
-        }
-        (
-            Error::Http(_) | Error::Network(_) | Error::Js(_) | Error::Syntax(_) | Error::Thrown(_),
-            manifest::ErrStyle::OData,
-        ) => {
-            converted = error.clone().odata();
-            &converted
-        }
-        (
-            Error::Http(_) | Error::Network(_) | Error::Js(_) | Error::Syntax(_) | Error::Thrown(_),
-            manifest::ErrStyle::Plain,
-        ) => {
-            converted = error.clone().plain();
-            &converted
-        }
-        (Error::Thrown(v), manifest::ErrStyle::None) => {
-            converted = Error::value(v.clone());
-            &converted
-        }
-        (Error::Js(m), manifest::ErrStyle::None) => {
-            converted = Error::msg(format!("Error: {m}"));
-            &converted
-        }
-        (Error::Syntax(m), manifest::ErrStyle::None) => {
-            converted = Error::msg(format!("SyntaxError: {m}"));
-            &converted
-        }
-        (other, _) => other,
+    use manifest::ErrStyle;
+    let converted = match (error, meta.map_or(ErrStyle::None, |m| m.errors)) {
+        (Error::Command { .. }, _) => None,
+        (_, ErrStyle::Json) => Some(error.clone().odata_json()),
+        (_, ErrStyle::Viva) => Some(error.clone().viva()),
+        (_, ErrStyle::OData) => Some(error.clone().odata()),
+        (_, ErrStyle::Plain) => Some(error.clone().plain()),
+        (Error::Thrown(v), ErrStyle::None) => Some(Error::value(v.clone())),
+        (Error::Js(m), ErrStyle::None) => Some(Error::msg(format!("Error: {m}"))),
+        (Error::Syntax(m), ErrStyle::None) => Some(Error::msg(format!("SyntaxError: {m}"))),
+        (_, ErrStyle::None) => None,
     };
+    let error = converted.as_ref().unwrap_or(error);
     let message: Value = match error {
         Error::Command { message, code, .. } => {
             if let Some(c) = code
@@ -519,19 +495,11 @@ fn validate_schema(
             }) {
                 return Err((input_required(i, meta), false));
             }
-            let msg = issues
-                .iter()
-                .map(|i| i.render(true))
-                .collect::<Vec<_>>()
-                .join(EOL);
+            let msg = render(&issues, true);
             return Err((invalid(msg), true));
         }
         if !config::prompt_enabled() {
-            let msg = issues
-                .iter()
-                .map(|i| i.render(true))
-                .collect::<Vec<_>>()
-                .join(EOL);
+            let msg = render(&issues, true);
             return Err((Error::msg(msg), true));
         }
         let missing: Vec<&schema::Issue> = issues
@@ -544,11 +512,7 @@ fn validate_schema(
             .collect();
         let others = issues.len() - missing.len() - sets.len();
         if others > 0 {
-            let msg = issues
-                .iter()
-                .map(|i| i.render(false))
-                .collect::<Vec<_>>()
-                .join(EOL);
+            let msg = render(&issues, false);
             return Err((Error::msg(msg), true));
         }
         if !missing.is_empty() {
@@ -627,10 +591,9 @@ fn validate_legacy(meta: &'static CmdMeta, sp: Option<&Spec>, opts: &mut Obj) ->
     }
     process_options(meta, opts)?;
     if let Some(l) = &meta.legacy {
-        let mut sets: Vec<&manifest::OptionSet> = l.option_sets.iter().collect();
-        // `optionSets.sort(opt => opt.runsWhen ? 0 : 1)` with a one-argument comparator
-        sets.sort_by_key(|_| 0);
-        for set in sets {
+        // `optionSets.sort(opt => opt.runsWhen ? 0 : 1)` with a one-argument
+        // comparator keeps the order
+        for set in l.option_sets {
             if let Some(rw) = set.runs_when
                 && !runs_when(rw, opts)
             {
@@ -841,25 +804,18 @@ pub async fn action(
     }
     if !anonymous && !meta.custom_action && auth::is_active() {
         let public = c.cloud_type == auth::CloudType::Public;
-        if meta.is(base::POWER_PLATFORM) {
+        let power = [
+            (base::POWER_PLATFORM, "Power Platform"),
+            (base::POWER_APPS, "Power Apps"),
+            (base::POWER_AUTOMATE, "Power Automate"),
+        ]
+        .into_iter()
+        .find(|(b, _)| meta.is(*b));
+        if let Some((_, product)) = power {
             if !public {
-                return Err(Error::msg(
-                    "Power Platform commands only support the public cloud at the moment. We'll add support for other clouds in the future. Sorry for the inconvenience.",
-                ));
-            }
-            auth::assert_access_token_type(true)?;
-        } else if meta.is(base::POWER_APPS) {
-            if !public {
-                return Err(Error::msg(
-                    "Power Apps commands only support the public cloud at the moment. We'll add support for other clouds in the future. Sorry for the inconvenience.",
-                ));
-            }
-            auth::assert_access_token_type(true)?;
-        } else if meta.is(base::POWER_AUTOMATE) {
-            if !public {
-                return Err(Error::msg(
-                    "Power Automate commands only support the public cloud at the moment. We'll add support for other clouds in the future. Sorry for the inconvenience.",
-                ));
+                return Err(Error::msg(format!(
+                    "{product} commands only support the public cloud at the moment. We'll add support for other clouds in the future. Sorry for the inconvenience."
+                )));
             }
             auth::assert_access_token_type(true)?;
         } else if meta.is(base::POWER_BI)
@@ -885,6 +841,21 @@ pub async fn action(
         app_id,
     };
     (sp.run)(&mut cx).await
+}
+
+/// The one item of `items`: `not_found` when there is none, and the user's
+/// pick (`cli.handleMultipleResultsFound`, keyed by `key`) when there are more.
+pub fn pick_one(
+    items: &[Value],
+    key: &str,
+    not_found: Error,
+    multiple: &str,
+) -> Result<Value, Error> {
+    match items {
+        [] => Err(not_found),
+        [one] => Ok(one.clone()),
+        _ => handle_multiple_results(multiple, &crate::util::array_to_hash_table(key, items)),
+    }
 }
 
 /// `cli.handleMultipleResultsFound`.
@@ -938,10 +909,8 @@ pub async fn run_nested(
         );
         if capture {
             log::begin_capture();
-            log::log_stderr(&msg);
-        } else {
-            log::log_stderr(&msg);
         }
+        log::log_stderr(&msg);
     } else if capture {
         log::begin_capture();
     }

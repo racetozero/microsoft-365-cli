@@ -72,12 +72,6 @@ async fn solution_by_name(api: &str, name: &str) -> Result<Value> {
     )
 }
 
-fn id_or_name(cx: &Cx) -> String {
-    cx.s("id")
-        .or_else(|| cx.s("name"))
-        .unwrap_or_else(|| "undefined".into())
-}
-
 /// Runs another command (`cli.executeCommandWithOutput`) and returns its parsed JSON output.
 async fn nested(cx: &Cx, name: &str) -> Result<Value> {
     let o = obj! { "environmentName": ?cx.val("environmentName").cloned(), "name": ?cx.val("name").cloned(), "output": "json", "debug": cx.debug(), "verbose": cx.verbose() };
@@ -90,7 +84,7 @@ async fn nested(cx: &Cx, name: &str) -> Result<Value> {
 pub async fn aibuildermodel_get(cx: &mut Cx) -> Result<()> {
     cx.verbose_log(&format!(
         "Retrieving an AI builder model '{}'...",
-        id_or_name(cx)
+        cx.first_u(&["id", "name"])
     ));
     let api = dynamics_url(cx).await?;
     let r = match cx.s("id") {
@@ -133,7 +127,7 @@ pub async fn aibuildermodel_list(cx: &mut Cx) -> Result<()> {
 }
 
 pub async fn aibuildermodel_remove(cx: &mut Cx) -> Result<()> {
-    let what = id_or_name(cx);
+    let what = cx.first_u(&["id", "name"]);
     cx.verbose_log(&format!("Removing AI builder model '{what}'..."));
     if !cx.proceed(
         "force",
@@ -157,7 +151,10 @@ pub async fn aibuildermodel_remove(cx: &mut Cx) -> Result<()> {
 }
 
 pub async fn copilot_get(cx: &mut Cx) -> Result<()> {
-    cx.verbose_log(&format!("Retrieving copilot '{}'...", id_or_name(cx)));
+    cx.verbose_log(&format!(
+        "Retrieving copilot '{}'...",
+        cx.first_u(&["id", "name"])
+    ));
     let api = dynamics_url(cx).await?;
     let r = match cx.s("id") {
         Some(id) => {
@@ -251,7 +248,7 @@ pub async fn copilot_list(cx: &mut Cx) -> Result<()> {
 }
 
 pub async fn copilot_remove(cx: &mut Cx) -> Result<()> {
-    let what = id_or_name(cx);
+    let what = cx.first_u(&["id", "name"]);
     cx.verbose_log(&format!("Removing copilot '{what}'..."));
     if !cx.proceed(
         "force",
@@ -335,10 +332,7 @@ pub async fn dataverse_table_row_list(cx: &mut Cx) -> Result<()> {
 }
 
 pub async fn dataverse_table_row_remove(cx: &mut Cx) -> Result<()> {
-    let table = cx
-        .s("tableName")
-        .or_else(|| cx.s("entitySetName"))
-        .unwrap_or_else(|| "undefined".into());
+    let table = cx.first_u(&["tableName", "entitySetName"]);
     let id = cx.u("id");
     cx.verbose_log(&format!("Removing row '{id}' from table '{table}'..."));
     if !cx.proceed(
@@ -468,7 +462,7 @@ fn trim_output(cx: &Cx) -> bool {
 pub async fn solution_get(cx: &mut Cx) -> Result<()> {
     cx.verbose_log(&format!(
         "Retrieving a specific solution '{}'...",
-        id_or_name(cx)
+        cx.first_u(&["id", "name"])
     ));
     let api = dynamics_url(cx).await?;
     let r = match cx.s("name") {
@@ -543,7 +537,10 @@ pub async fn solution_publish(cx: &mut Cx) -> Result<()> {
         "<importexportxml>{}</importexportxml>",
         util::object_to_xml(&Value::Object(groups))
     );
-    cx.verbose_log(&format!("Publishing the solution '{}'...", id_or_name(cx)));
+    cx.verbose_log(&format!(
+        "Publishing the solution '{}'...",
+        cx.first_u(&["id", "name"])
+    ));
     let req = Request::post(format!("{api}/api/data/v9.0/PublishXml"))
         .graph_json()
         .json(obj! { "ParameterXml": xml });
@@ -578,7 +575,7 @@ const PUBLISHER_SELECT: &str = "publisherid,uniquename,friendlyname,versionnumbe
 pub async fn solution_publisher_get(cx: &mut Cx) -> Result<()> {
     cx.verbose_log(&format!(
         "Retrieving a specific publisher '{}'...",
-        id_or_name(cx)
+        cx.first_u(&["id", "name"])
     ));
     let api = dynamics_url(cx).await?;
     let r = match cx.s("id") {
@@ -627,7 +624,7 @@ pub async fn solution_publisher_list(cx: &mut Cx) -> Result<()> {
 }
 
 pub async fn solution_publisher_remove(cx: &mut Cx) -> Result<()> {
-    let what = id_or_name(cx);
+    let what = cx.first_u(&["id", "name"]);
     cx.verbose_log(&format!("Removes a publisher '{what}'..."));
     if !cx.proceed(
         "force",
@@ -651,7 +648,7 @@ pub async fn solution_publisher_remove(cx: &mut Cx) -> Result<()> {
 }
 
 pub async fn solution_remove(cx: &mut Cx) -> Result<()> {
-    let what = id_or_name(cx);
+    let what = cx.first_u(&["id", "name"]);
     cx.verbose_log(&format!("Removing solution '{what}'..."));
     if !cx.proceed(
         "force",
@@ -770,11 +767,7 @@ pub async fn website_get(cx: &mut Cx) -> Result<()> {
 }
 
 pub async fn website_remove(cx: &mut Cx) -> Result<()> {
-    let what = cx
-        .s("id")
-        .or_else(|| cx.s("name"))
-        .or_else(|| cx.s("url"))
-        .unwrap_or_else(|| "undefined".into());
+    let what = cx.first_u(&["id", "name", "url"]);
     cx.verbose_log(&format!("Removing website '{what}'..."));
     if !cx.proceed(
         "force",

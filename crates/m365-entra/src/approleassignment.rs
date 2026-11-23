@@ -44,18 +44,16 @@ pub async fn add(cx: &mut Cx) -> Result<()> {
         .data()
         .await?;
     let vals = arr(&sps, "value");
-    let object_id = match vals.len() {
-        0 => return Err(Error::msg("The specified service principal doesn't exist")),
-        1 => s(&vals[0], "id").to_string(),
-        _ => s(
-            &cx.handle_multiple_results(
-                "Multiple service principal found.",
-                &util::array_to_hash_table("id", vals),
-            )?,
+    let object_id = s(
+        &m365_core::runner::pick_one(
+            vals,
             "id",
-        )
-        .to_string(),
-    };
+            Error::msg("The specified service principal doesn't exist"),
+            "Multiple service principal found.",
+        )?,
+        "id",
+    )
+    .to_string();
     let res = Request::get(format!(
         "{GRAPH}/v1.0/servicePrincipals?{}",
         resource_filter(&cx.u("resource"))
@@ -287,21 +285,19 @@ pub async fn enterpriseapp_add(cx: &mut Cx) -> Result<()> {
                 .data()
                 .await?;
             let v = arr(&r, "value");
-            match v.len() {
-                0 => return Err(Error::msg("The specified Entra app doesn't exist")),
-                1 => s(&v[0], "appId").to_string(),
-                _ => s(
-                    &cx.handle_multiple_results(
-                        &format!(
-                            "Multiple Entra apps with name '{}' found.",
-                            cx.u("displayName")
-                        ),
-                        &util::array_to_hash_table("appId", v),
-                    )?,
+            s(
+                &m365_core::runner::pick_one(
+                    v,
                     "appId",
-                )
-                .to_string(),
-            }
+                    Error::msg("The specified Entra app doesn't exist"),
+                    &format!(
+                        "Multiple Entra apps with name '{}' found.",
+                        cx.u("displayName")
+                    ),
+                )?,
+                "appId",
+            )
+            .to_string()
         }
     };
     let r = Request::post(format!("{GRAPH}/v1.0/servicePrincipals"))
@@ -331,21 +327,19 @@ pub async fn enterpriseapp_get(cx: &mut Cx) -> Result<()> {
                 .data()
                 .await?;
             let v = arr(&r, "value");
-            match v.len() {
-                0 => return Err(Error::msg("The specified Entra app does not exist")),
-                1 => s(&v[0], "id").to_string(),
-                _ => s(
-                    &cx.handle_multiple_results(
-                        &format!(
-                            "Multiple Entra apps with name '{}' found.",
-                            cx.u("displayName")
-                        ),
-                        &util::array_to_hash_table("id", v),
-                    )?,
+            s(
+                &m365_core::runner::pick_one(
+                    v,
                     "id",
-                )
-                .to_string(),
-            }
+                    Error::msg("The specified Entra app does not exist"),
+                    &format!(
+                        "Multiple Entra apps with name '{}' found.",
+                        cx.u("displayName")
+                    ),
+                )?,
+                "id",
+            )
+            .to_string()
         }
     };
     let r = Request::get(format!("{GRAPH}/v1.0/servicePrincipals/{id}"))
@@ -374,11 +368,7 @@ pub async fn enterpriseapp_list(cx: &mut Cx) -> Result<()> {
 }
 
 pub async fn enterpriseapp_remove(cx: &mut Cx) -> Result<()> {
-    let what = cx
-        .s("id")
-        .or_else(|| cx.s("displayName"))
-        .or_else(|| cx.s("objectId"))
-        .unwrap_or_else(|| "undefined".into());
+    let what = cx.first_u(&["id", "displayName", "objectId"]);
     if !cx.proceed(
         "force",
         &format!("Are you sure you want to remove enterprise application '{what}'?"),

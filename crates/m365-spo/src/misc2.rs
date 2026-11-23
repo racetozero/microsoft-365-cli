@@ -2,13 +2,10 @@
 //! `spo apppage *` and `spo brandcenter *`.
 
 use crate::sp;
+use crate::sp::ne;
 use m365_core::prelude::*;
 use m365_core::ut::spo;
 use m365_core::ut::url as urlutil;
-
-fn ne(cx: &Cx, k: &str) -> Option<String> {
-    cx.s(k).filter(|s| !s.is_empty())
-}
 
 fn undef(k: &str) -> Error {
     Error::js(format!(

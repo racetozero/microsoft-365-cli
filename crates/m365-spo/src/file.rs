@@ -1,24 +1,9 @@
 //! `spo file *`.
 
 use crate::sp;
+use crate::sp::{first, ne, opt};
 use m365_core::prelude::*;
 use m365_core::ut::url as urlutil;
-
-pub(crate) fn ne(cx: &Cx, k: &str) -> Option<String> {
-    cx.s(k).filter(|s| !s.is_empty())
-}
-
-pub(crate) fn opt(cx: &Cx, k: &str) -> String {
-    cx.val(k)
-        .map(to_js_string)
-        .unwrap_or_else(|| "undefined".into())
-}
-
-pub(crate) fn first(cx: &Cx, keys: &[&str]) -> String {
-    keys.iter()
-        .find_map(|k| ne(cx, k))
-        .unwrap_or_else(|| "undefined".into())
-}
 
 fn folder_files(web: &str, folder: &str, file: &str) -> String {
     format!(

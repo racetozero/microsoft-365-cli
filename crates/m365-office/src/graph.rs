@@ -295,15 +295,8 @@ pub async fn directoryextension_list(cx: &mut Cx) -> Result<()> {
 }
 
 pub async fn directoryextension_remove(cx: &mut Cx) -> Result<()> {
-    let what = cx
-        .s("id")
-        .or_else(|| cx.s("name"))
-        .unwrap_or_else(|| "undefined".into());
-    let app = cx
-        .s("appObjectId")
-        .or_else(|| cx.s("appId"))
-        .or_else(|| cx.s("appName"))
-        .unwrap_or_else(|| "undefined".into());
+    let what = cx.first_u(&["id", "name"]);
+    let app = cx.first_u(&["appObjectId", "appId", "appName"]);
     if !cx.proceed(
         "force",
         &format!(

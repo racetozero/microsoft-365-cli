@@ -35,7 +35,7 @@ pub fn register(v: &mut Vec<Spec>) {
         spec!("cli completion sh setup", completion_sh_setup),
         spec!("cli completion sh update", completion_sh_update),
         spec!("cli completion pwsh setup", completion_pwsh_setup),
-        spec!("cli completion pwsh update", completion_pwsh_update),
+        spec!("cli completion pwsh update", completion_sh_update),
         spec!("cli completion clink update", completion_clink_update),
         spec!("cli app add", app_add, refine = app_add_refine),
         spec!("cli app reconsent", app_reconsent),

@@ -19,14 +19,6 @@ pub fn select_query(properties: Option<&str>) -> Option<String> {
     (!sel.is_empty()).then(|| format!("$select={}", sel.join(",")))
 }
 
-fn pick_one(items: Vec<Value>, not_found: String, multiple: String) -> Result<Value> {
-    match items.len() {
-        0 => Err(Error::js(not_found)),
-        1 => Ok(items.into_iter().next().unwrap()),
-        _ => handle_multiple_results(&multiple, &array_to_hash_table("id", &items)),
-    }
-}
-
 pub mod user {
     use super::*;
 
@@ -153,10 +145,11 @@ pub mod group {
 
     pub async fn by_display_name(name: &str, properties: Option<&str>) -> Result<Value> {
         let g = by_display_name_all(name, properties).await?;
-        pick_one(
-            g,
-            format!("The specified group '{name}' does not exist."),
-            format!("Multiple groups with name '{name}' found."),
+        crate::runner::pick_one(
+            &g,
+            "id",
+            Error::js(format!("The specified group '{name}' does not exist.")),
+            &format!("Multiple groups with name '{name}' found."),
         )
     }
 
@@ -166,10 +159,11 @@ pub mod group {
             eqp(name)
         ))
         .await?;
-        let g = pick_one(
-            g,
-            format!("The specified group '{name}' does not exist."),
-            format!("Multiple groups with name '{name}' found."),
+        let g = crate::runner::pick_one(
+            &g,
+            "id",
+            Error::js(format!("The specified group '{name}' does not exist.")),
+            &format!("Multiple groups with name '{name}' found."),
         )?;
         Ok(s(&g, "id").to_string())
     }
@@ -180,10 +174,11 @@ pub mod group {
             eqp(nick)
         ))
         .await?;
-        let g = pick_one(
-            g,
-            format!("The specified group '{nick}' does not exist."),
-            format!("Multiple groups with mail nickname '{nick}' found."),
+        let g = crate::runner::pick_one(
+            &g,
+            "id",
+            Error::js(format!("The specified group '{nick}' does not exist.")),
+            &format!("Multiple groups with mail nickname '{nick}' found."),
         )?;
         Ok(s(&g, "id").to_string())
     }
@@ -277,10 +272,13 @@ pub async fn administrative_unit_by_display_name(
         eqp(name)
     ))
     .await?;
-    pick_one(
-        items,
-        format!("The specified administrative unit '{name}' does not exist."),
-        format!("Multiple administrative units with name '{name}' found."),
+    crate::runner::pick_one(
+        &items,
+        "id",
+        Error::js(format!(
+            "The specified administrative unit '{name}' does not exist."
+        )),
+        &format!("Multiple administrative units with name '{name}' found."),
     )
 }
 
@@ -290,10 +288,11 @@ pub async fn device_by_display_name(name: &str) -> Result<Value> {
         eqp(name)
     ))
     .await?;
-    pick_one(
-        items,
-        format!("The specified device '{name}' does not exist."),
-        format!("Multiple devices with name '{name}' found."),
+    crate::runner::pick_one(
+        &items,
+        "id",
+        Error::js(format!("The specified device '{name}' does not exist.")),
+        &format!("Multiple devices with name '{name}' found."),
     )
 }
 
@@ -321,10 +320,13 @@ pub async fn role_definition_by_display_name(
         url.push_str(&format!("&$select={p}"));
     }
     let items = odata::get_all_items(&url).await?;
-    pick_one(
-        items,
-        format!("The specified role definition '{name}' does not exist."),
-        format!("Multiple role definitions with name '{name}' found."),
+    crate::runner::pick_one(
+        &items,
+        "id",
+        Error::js(format!(
+            "The specified role definition '{name}' does not exist."
+        )),
+        &format!("Multiple role definitions with name '{name}' found."),
     )
 }
 
@@ -348,10 +350,13 @@ pub async fn exchange_role_definition_by_display_name(
         url.push_str(&format!("&$select={p}"));
     }
     let items = odata::get_all_items(&url).await?;
-    pick_one(
-        items,
-        format!("The specified role definition '{name}' does not exist."),
-        format!("Multiple role definitions with name '{name}' found."),
+    crate::runner::pick_one(
+        &items,
+        "id",
+        Error::js(format!(
+            "The specified role definition '{name}' does not exist."
+        )),
+        &format!("Multiple role definitions with name '{name}' found."),
     )
 }
 
@@ -529,10 +534,11 @@ pub mod teams {
             eqp(name)
         ))
         .await?;
-        pick_one(
-            t,
-            format!("The specified team '{name}' does not exist."),
-            format!("Multiple teams with name '{name}' found."),
+        crate::runner::pick_one(
+            &t,
+            "id",
+            Error::js(format!("The specified team '{name}' does not exist.")),
+            &format!("Multiple teams with name '{name}' found."),
         )
     }
 
@@ -542,10 +548,11 @@ pub mod teams {
             eqp(name)
         ))
         .await?;
-        let t = pick_one(
-            t,
-            format!("The specified team '{name}' does not exist."),
-            format!("Multiple teams with name '{name}' found."),
+        let t = crate::runner::pick_one(
+            &t,
+            "id",
+            Error::js(format!("The specified team '{name}' does not exist.")),
+            &format!("Multiple teams with name '{name}' found."),
         )?;
         Ok(crate::json::u(&t, "id"))
     }

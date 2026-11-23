@@ -2,7 +2,6 @@
 
 use crate::sp;
 use m365_core::prelude::*;
-use m365_core::ut::url as urlutil;
 
 pub async fn node_add(cx: &mut Cx) -> Result<()> {
     let web = cx.u("webUrl");
@@ -170,18 +169,9 @@ pub async fn node_set(cx: &mut Cx) -> Result<()> {
 // ---- eventreceiver -------------------------------------------------------------
 
 fn list_part(cx: &Cx, web: &str) -> String {
-    if let Some(i) = cx.s("listId") {
-        format!("/lists(guid'{}')", eqp(&i))
-    } else if let Some(t) = cx.s("listTitle") {
-        format!("/lists/getByTitle('{}')", eqp(&t))
-    } else if let Some(l) = cx.s("listUrl") {
-        format!(
-            "/GetList('{}')",
-            eqp(&urlutil::get_server_relative_path(web, &l))
-        )
-    } else {
-        String::new()
-    }
+    sp::list_segment(cx, web, sp::LIST, "getByTitle")
+        .map(|s| format!("/{s}"))
+        .unwrap_or_default()
 }
 
 pub async fn eventreceiver_get(cx: &mut Cx) -> Result<()> {

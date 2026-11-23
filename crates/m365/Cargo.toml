@@ -30,3 +30,6 @@ m365-teams.workspace = true
 m365-office.workspace = true
 m365-pp.workspace = true
 m365-spfx.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

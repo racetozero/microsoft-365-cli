@@ -1,25 +1,12 @@
 //! `spo serviceprincipal *` and `spo hubsite *`.
 
 use crate::sp;
+use crate::sp::{ex, ne};
 use m365_core::prelude::*;
 use m365_core::ut::spo;
 
 const SP_TYPE: &str = "{104e8f06-1e00-4675-99c6-1b9b504ed8d8}";
 const TENANT: &str = "{268004ae-ef6b-4e9b-8425-127220d84719}";
-
-fn ne(cx: &Cx, k: &str) -> Option<String> {
-    cx.s(k).filter(|s| !s.is_empty())
-}
-
-fn ex(cx: &Cx, k: &str) -> String {
-    util::escape_xml_value(cx.val(k))
-}
-
-fn prop(v: &Value, k: &str) -> String {
-    v.get(k)
-        .map(to_js_string)
-        .unwrap_or_else(|| "undefined".into())
-}
 
 async fn admin_digest(cx: &Cx) -> Result<(String, String)> {
     let admin = spo::get_spo_admin_url(cx.debug()).await?;
@@ -81,7 +68,7 @@ pub async fn grant_list(cx: &mut Cx) -> Result<()> {
     };
     let r = Request::get(format!(
         "https://graph.microsoft.com/v1.0/servicePrincipals/{}/oauth2PermissionGrants",
-        prop(first, "id")
+        u(first, "id")
     ))
     .graph_json()
     .data()
@@ -113,7 +100,7 @@ pub async fn grant_revoke(cx: &mut Cx) -> Result<()> {
         let body = sp::request(
             &format!(
                 r#"<ObjectPath Id="9" ObjectPathId="8" /><Method Name="Remove" Id="10" ObjectPathId="8"><Parameters><Parameter Type="String">{}</Parameter><Parameter Type="String">Microsoft Graph</Parameter><Parameter Type="String">{}</Parameter></Parameters></Method>"#,
-                prop(&grant, "ClientId"),
+                u(&grant, "ClientId"),
                 util::escape_xml(&scope)
             ),
             &format!(
@@ -167,7 +154,7 @@ pub async fn permissionrequest_approve(cx: &mut Cx) -> Result<()> {
                     Some(r) => x.get("Resource").and_then(Value::as_str) == Some(r.as_str()),
                     None => true,
                 })
-                .map(|x| prop(x, "Id"))
+                .map(|x| u(x, "Id"))
                 .collect()
         }
     };
@@ -230,7 +217,7 @@ pub async fn permissionrequest_list(cx: &mut Cx) -> Result<()> {
             .get("value")
             .and_then(Value::as_array)
             .and_then(|v| v.first())
-            .map(|f| prop(f, "id"));
+            .map(|f| u(f, "id"));
         if let Some(id) = id {
             let g = Request::get(format!("https://graph.microsoft.com/v1.0/oAuth2Permissiongrants/?$filter=clientId eq '{id}' and consentType eq 'AllPrincipals'")).graph_json().data().await?;
             if let Some(grants) = g
@@ -322,8 +309,7 @@ async fn all_hubs(admin: &str) -> Result<Vec<Value>> {
         .unwrap_or_default())
 }
 
-async fn pick_hub(
-    cx: &Cx,
+fn pick_hub(
     hubs: &[Value],
     id: Option<String>,
     title: Option<String>,
@@ -346,22 +332,20 @@ async fn pick_hub(
             }
         }
     }
-    match found.len() {
-        0 => Err(Error::msg(format!(
+    m365_core::runner::pick_one(
+        &found,
+        "ID",
+        Error::msg(format!(
             "The specified hub site '{}' does not exist.",
             id.or(title.clone())
                 .or(url)
                 .unwrap_or_else(|| "undefined".into())
-        ))),
-        1 => Ok(found.remove(0)),
-        _ => cx.handle_multiple_results(
-            &format!(
-                "Multiple hub sites with name '{}' found.",
-                title.unwrap_or_else(|| "undefined".into())
-            ),
-            &util::array_to_hash_table("ID", &found),
+        )),
+        &format!(
+            "Multiple hub sites with name '{}' found.",
+            title.unwrap_or_else(|| "undefined".into())
         ),
-    }
+    )
 }
 
 pub async fn connect(cx: &mut Cx) -> Result<()> {
@@ -377,18 +361,16 @@ pub async fn connect(cx: &mut Cx) -> Result<()> {
     ));
     let admin = spo::get_spo_admin_url(cx.debug()).await?;
     let hubs = all_hubs(&admin).await?;
-    let hub = pick_hub(cx, &hubs, ne(cx, "id"), ne(cx, "title"), ne(cx, "url")).await?;
+    let hub = pick_hub(&hubs, ne(cx, "id"), ne(cx, "title"), ne(cx, "url"))?;
     let parent = pick_hub(
-        cx,
         &hubs,
         ne(cx, "parentId"),
         ne(cx, "parentTitle"),
         ne(cx, "parentUrl"),
-    )
-    .await?;
+    )?;
     let mut r = Request::patch(format!(
         "{admin}/_api/HubSites/GetById('{}')",
-        prop(&hub, "ID")
+        u(&hub, "ID")
     ))
     .spo_json();
     if let Some(e) = hub.get("odata.etag") {
@@ -484,7 +466,7 @@ pub async fn disconnect(cx: &mut Cx) -> Result<()> {
     };
     let mut r = Request::patch(format!(
         "{admin}/_api/HubSites/GetById('{}')",
-        prop(&hub, "ID")
+        u(&hub, "ID")
     ))
     .spo_json();
     if let Some(e) = hub.get("odata.etag") {

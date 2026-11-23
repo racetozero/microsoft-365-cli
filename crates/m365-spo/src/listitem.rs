@@ -1,42 +1,19 @@
 //! `spo listitem *`.
 
 use crate::sp;
+use crate::sp::{first, ne, opt};
 use m365_core::prelude::*;
 use m365_core::term::EOL;
 use m365_core::ut::entra;
 use m365_core::ut::url as urlutil;
 
-fn ne(cx: &Cx, k: &str) -> Option<String> {
-    cx.s(k).filter(|s| !s.is_empty())
-}
-
-fn opt(cx: &Cx, k: &str) -> String {
-    cx.val(k)
-        .map(to_js_string)
-        .unwrap_or_else(|| "undefined".into())
-}
-
 /// `${webUrl}/_api/web` + `/lists(...)` | `/lists/getByTitle(...)` | `/GetList(...)`.
 fn list_api(cx: &Cx) -> String {
-    let web = cx.u("webUrl");
-    let seg = sp::list_segment(
-        &web,
-        ne(cx, "listId"),
-        ne(cx, "listTitle"),
-        ne(cx, "listUrl"),
-    );
-    if seg.is_empty() {
-        format!("{web}/_api/web")
-    } else {
-        format!("{web}/_api/web/{seg}")
-    }
+    list_url(cx, "getByTitle")
 }
 
 fn list_label(cx: &Cx) -> String {
-    ["listId", "listTitle", "listUrl"]
-        .iter()
-        .find_map(|k| ne(cx, k))
-        .unwrap_or_else(|| "undefined".into())
+    first(cx, &sp::LIST)
 }
 
 fn undef(k: &str) -> Error {
@@ -554,12 +531,7 @@ pub async fn batch_remove(cx: &mut Cx) -> Result<()> {
         }
         None => util::split_and_trim(&cx.u("ids")),
     };
-    let seg = sp::list_segment(
-        &web,
-        ne(cx, "listId"),
-        ne(cx, "listTitle"),
-        ne(cx, "listUrl"),
-    );
+    let seg = sp::list_segment(cx, &web, sp::LIST, "getByTitle").unwrap_or_default();
     let chunks: Vec<&[String]> = ids.chunks(10).collect();
     for (i, chunk) in chunks.iter().enumerate() {
         cx.verbose_log(&format!(
@@ -1282,19 +1254,11 @@ pub async fn retentionlabel_remove(cx: &mut Cx) -> Result<()> {
 
 fn item_rest(cx: &Cx) -> String {
     let web = cx.u("webUrl");
-    let seg = sp::list_segment(
-        &web,
-        ne(cx, "listId"),
-        ne(cx, "listTitle"),
-        ne(cx, "listUrl"),
-    );
     format!(
         "{web}/_api/web/{}items({})/",
-        if seg.is_empty() {
-            String::new()
-        } else {
-            format!("{seg}/")
-        },
+        sp::list_segment(cx, &web, sp::LIST, "getByTitle")
+            .map(|s| format!("{s}/"))
+            .unwrap_or_default(),
         opt(cx, "listItemId")
     )
 }
@@ -1362,19 +1326,12 @@ pub async fn roleassignment_remove(cx: &mut Cx) -> Result<()> {
     Ok(())
 }
 
-fn inherit_list(cx: &Cx) -> String {
+/// `${webUrl}/_api/web`, followed by the list segment when a list is named.
+fn list_url(cx: &Cx, by_title: &str) -> String {
     let web = cx.u("webUrl");
-    if let Some(i) = ne(cx, "listId") {
-        format!("{web}/_api/web/lists(guid'{}')", eqp(&i))
-    } else if let Some(t) = ne(cx, "listTitle") {
-        format!("{web}/_api/web/lists/getbytitle('{}')", eqp(&t))
-    } else if let Some(l) = ne(cx, "listUrl") {
-        format!(
-            "{web}/_api/web/GetList('{}')",
-            eqp(&urlutil::get_server_relative_path(&web, &l))
-        )
-    } else {
-        format!("{web}/_api/web")
+    match sp::list_segment(cx, &web, sp::LIST, by_title) {
+        Some(seg) => format!("{web}/_api/web/{seg}"),
+        None => format!("{web}/_api/web"),
     }
 }
 
@@ -1403,7 +1360,7 @@ pub async fn roleinheritance_break(cx: &mut Cx) -> Result<()> {
     let keep = !cx.bool("clearExistingPermissions");
     Request::post(format!(
         "{}/items({})/breakroleinheritance({keep})",
-        inherit_list(cx),
+        list_url(cx, "getbytitle"),
         opt(cx, "listItemId")
     ))
     .spo_json()
@@ -1430,7 +1387,7 @@ pub async fn roleinheritance_reset(cx: &mut Cx) -> Result<()> {
     }
     Request::post(format!(
         "{}/items({})/resetroleinheritance",
-        inherit_list(cx),
+        list_url(cx, "getbytitle"),
         opt(cx, "listItemId")
     ))
     .spo_json()

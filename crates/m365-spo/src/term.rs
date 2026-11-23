@@ -1,6 +1,7 @@
 //! `spo term *` and `spo sitescript *`.
 
 use crate::sp;
+use crate::sp::ex;
 use m365_core::prelude::*;
 use m365_core::ut::spo;
 
@@ -10,18 +11,6 @@ fn undef(what: &str) -> Error {
     Error::js(format!(
         "Cannot read properties of undefined (reading '{what}')"
     ))
-}
-
-/// `formatting.escapeXml(opt)` in a template literal.
-fn ex(cx: &Cx, k: &str) -> String {
-    util::escape_xml_value(cx.val(k))
-}
-
-/// `${v}` for a property that may be missing.
-fn prop(v: &Value, k: &str) -> String {
-    v.get(k)
-        .map(to_js_string)
-        .unwrap_or_else(|| "undefined".into())
 }
 
 fn strip<'a>(v: Option<&'a Value>, what: &str) -> Result<&'a str> {
@@ -197,7 +186,7 @@ pub async fn add(cx: &mut Cx) -> Result<()> {
         }
         let store = match json.iter().position(|x| x.as_f64() == Some(8.0)) {
             Some(p) => match json.get(p + 1) {
-                Some(n) => prop(n, "_ObjectIdentity_"),
+                Some(n) => u(n, "_ObjectIdentity_"),
                 None => return Err(undef("_ObjectIdentity_")),
             },
             None => String::new(),
@@ -209,7 +198,7 @@ pub async fn add(cx: &mut Cx) -> Result<()> {
             ),
             &format!(
                 r#"<Identity Id="117" Name="{}" /><Identity Id="109" Name="{store}" />"#,
-                prop(&term, "_ObjectIdentity_")
+                u(&term, "_ObjectIdentity_")
             ),
         );
         let r = m365_core::ut::spo::process_query(&web, &d, body).await?;
@@ -240,11 +229,7 @@ pub async fn get(cx: &mut Cx) -> Result<()> {
                 cx.val(id)
                     .filter(|v| truthy(v))
                     .map(to_js_string)
-                    .unwrap_or(if cx.val(name).is_some() {
-                        e
-                    } else {
-                        prop(&Value::Object(cx.opts.clone()), id)
-                    })
+                    .unwrap_or(if cx.val(name).is_some() { e } else { cx.u(id) })
             }
         };
         let gm = if cx.val("termGroupName").is_none() {
@@ -273,7 +258,7 @@ pub async fn get(cx: &mut Cx) -> Result<()> {
     let mut term = if r.is_null() {
         return Err(Error::msg(format!(
             "Term with id '{}' could not be found.",
-            prop(&Value::Object(cx.opts.clone()), "id")
+            cx.u("id")
         )));
     } else if let Some(items) = r.get("_Child_Items_") {
         let items = match items {
@@ -283,7 +268,7 @@ pub async fn get(cx: &mut Cx) -> Result<()> {
         if items.is_empty() {
             return Err(Error::msg(format!(
                 "Term with name '{}' could not be found.",
-                prop(&Value::Object(cx.opts.clone()), "name")
+                cx.u("name")
             )));
         }
         if items.len() > 1 {
@@ -331,7 +316,7 @@ pub async fn group_add(cx: &mut Cx) -> Result<()> {
             &format!(
                 r#"<Method Id="13" ParentId="6" Name="CreateGroup"><Parameters><Parameter Type="String">{}</Parameter><Parameter Type="Guid">{{{id}}}</Parameter></Parameters></Method><Identity Id="6" Name="{}" />"#,
                 ex(cx, "name"),
-                prop(&store, "_ObjectIdentity_")
+                u(&store, "_ObjectIdentity_")
             ),
         ),
     )
@@ -350,7 +335,7 @@ pub async fn group_add(cx: &mut Cx) -> Result<()> {
             ),
             &format!(
                 r#"<Identity Id="45" Name="{}" />"#,
-                prop(&group, "_ObjectIdentity_")
+                u(&group, "_ObjectIdentity_")
             ),
         );
         let r = m365_core::ut::spo::process_query(&web, &d, body).await?;
@@ -446,7 +431,7 @@ fn child_terms<'a>(
 }
 
 async fn child_terms_impl(web: &str, d: &str, parent: &mut Value) -> Result<()> {
-    let ident = prop(parent, "_ObjectIdentity_");
+    let ident = u(parent, "_ObjectIdentity_");
     let body = sp::request(
         r#"<ObjectPath Id="20" ObjectPathId="19" /><Query Id="21" ObjectPathId="19"><Query SelectAllProperties="false"><Properties /></Query><ChildItemQuery SelectAllProperties="true"><Properties><Property Name="CustomSortOrder" ScalarProperty="true" /><Property Name="CustomProperties" ScalarProperty="true" /><Property Name="LocalCustomProperties" ScalarProperty="true" /></Properties></ChildItemQuery></Query>"#,
         &format!(
@@ -557,7 +542,7 @@ pub async fn set_add(cx: &mut Cx) -> Result<()> {
         ),
         None => format!(
             r#"<Method Id="42" ParentId="40" Name="GetById"><Parameters><Parameter Type="Guid">{{{}}}</Parameter></Parameters></Method>"#,
-            prop(&Value::Object(cx.opts.clone()), "termGroupId")
+            cx.u("termGroupId")
         ),
     };
     let id = cx
@@ -581,7 +566,7 @@ pub async fn set_add(cx: &mut Cx) -> Result<()> {
     if desc.is_some() || cp.is_some() {
         let store = match json.iter().position(|x| x.as_f64() == Some(39.0)) {
             Some(p) => match json.get(p + 1) {
-                Some(n) => prop(n, "_ObjectIdentity_"),
+                Some(n) => u(n, "_ObjectIdentity_"),
                 None => return Err(undef("_ObjectIdentity_")),
             },
             None => String::new(),
@@ -609,7 +594,7 @@ pub async fn set_add(cx: &mut Cx) -> Result<()> {
             ),
             &format!(
                 r#"<Identity Id="117" Name="{}" /><Identity Id="109" Name="{store}" />"#,
-                prop(&set, "_ObjectIdentity_")
+                u(&set, "_ObjectIdentity_")
             ),
         );
         let r = m365_core::ut::spo::process_query(&web, &d, body).await?;

@@ -1,26 +1,11 @@
 //! `spo tenant *`.
 
 use crate::sp;
+use crate::sp::{first, ne, opt};
 use m365_core::prelude::*;
 use m365_core::runner::run_nested;
 use m365_core::ut::spo;
 use m365_core::ut::url as urlutil;
-
-fn ne(cx: &Cx, k: &str) -> Option<String> {
-    cx.s(k).filter(|s| !s.is_empty())
-}
-
-fn opt(cx: &Cx, k: &str) -> String {
-    cx.val(k)
-        .map(to_js_string)
-        .unwrap_or_else(|| "undefined".into())
-}
-
-fn first(cx: &Cx, keys: &[&str]) -> String {
-    keys.iter()
-        .find_map(|k| ne(cx, k))
-        .unwrap_or_else(|| "undefined".into())
-}
 
 const TENANT: &str = "{268004ae-ef6b-4e9b-8425-127220d84719}";
 

@@ -1,14 +1,11 @@
 //! `spo sitedesign *`.
 
 use crate::sp;
+use crate::sp::ne;
 use m365_core::prelude::*;
 use m365_core::ut::spo;
 
 const SSU: &str = "_api/Microsoft.Sharepoint.Utilities.WebTemplateExtensions.SiteScriptUtility";
-
-fn ne(cx: &Cx, k: &str) -> Option<String> {
-    cx.s(k).filter(|s| !s.is_empty())
-}
 
 fn json_ct(r: Request) -> Request {
     r.header("content-type", "application/json;charset=utf-8")
@@ -107,25 +104,23 @@ pub async fn get(cx: &mut Cx) -> Result<()> {
                 .data()
                 .await?;
             let title = cx.val("title").cloned();
-            let mut m: Vec<Value> = need_arr(&r, "value", "filter")?
+            let m: Vec<Value> = need_arr(&r, "value", "filter")?
                 .iter()
                 .filter(|x| x.get("Title") == title.as_ref())
                 .cloned()
                 .collect();
-            match m.len() {
-                0 => return Err(Error::msg("The specified site design does not exist")),
-                1 => u(&m.remove(0), "Id"),
-                _ => u(
-                    &cx.handle_multiple_results(
-                        &format!(
-                            "Multiple site designs with title '{}' found.",
-                            cx.u("title")
-                        ),
-                        &util::array_to_hash_table("Id", &m),
-                    )?,
+            u(
+                &m365_core::runner::pick_one(
+                    &m,
                     "Id",
-                ),
-            }
+                    Error::msg("The specified site design does not exist"),
+                    &format!(
+                        "Multiple site designs with title '{}' found.",
+                        cx.u("title")
+                    ),
+                )?,
+                "Id",
+            )
         }
     };
     cx.log(

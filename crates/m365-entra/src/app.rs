@@ -45,10 +45,10 @@ pub fn add_refine(i: usize, o: &Obj) -> std::result::Result<bool, String> {
                         return Err("Specify the name of the app to create either through the 'name' option or the 'name' property in the manifest".into());
                     }
                 }
-                Err(e) => {
+                Err(_) => {
                     return Err(format!(
                         "Error while parsing the specified manifest: {}",
-                        util::js_json_error(&e, &to_js_string(&o["manifest"]))
+                        util::js_json_error(&to_js_string(&o["manifest"]))
                     ));
                 }
             }
@@ -265,7 +265,7 @@ fn save_to_rc(cx: &Cx, app_id: &Value, name: &Value, dedupe: bool) {
                 if t.is_empty() {
                     Ok(obj! {})
                 } else {
-                    json::parse(&t).map_err(|e| util::js_json_error(&e, &t))
+                    json::parse(&t).map_err(|_| util::js_json_error(&t))
                 }
             }) {
             Ok(v) => rc = v,
@@ -815,11 +815,7 @@ pub async fn permission_list(cx: &mut Cx) -> Result<()> {
 }
 
 pub async fn permission_remove(cx: &mut Cx) -> Result<()> {
-    let which = cx
-        .s("appId")
-        .or_else(|| cx.s("appObjectId"))
-        .or_else(|| cx.s("appName"))
-        .unwrap_or_else(|| "undefined".into());
+    let which = cx.first_u(&["appId", "appObjectId", "appName"]);
     if !cx.proceed("force", &format!("Are you sure you want to remove the permissions from the specified application {which}?"))? {
         return Ok(());
     }

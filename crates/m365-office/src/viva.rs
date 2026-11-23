@@ -5,12 +5,8 @@ use m365_core::ut::entra;
 
 const YAMMER: &str = "https://www.yammer.com/api";
 
-fn resolve(p: &str) -> String {
-    util::resolve(p)
-}
-
 pub fn app_create_field(_i: u16, v: &Value, _o: &Obj) -> FieldCheck {
-    let p = resolve(&to_js_string(v));
+    let p = util::resolve(&to_js_string(v));
     if std::path::Path::new(&p).exists() {
         Ok(())
     } else {
@@ -19,7 +15,7 @@ pub fn app_create_field(_i: u16, v: &Value, _o: &Obj) -> FieldCheck {
 }
 
 pub fn app_create_refine(_i: usize, o: &Obj) -> std::result::Result<bool, String> {
-    let file = resolve(&format!(
+    let file = util::resolve(&format!(
         "{}.zip",
         o.get("name")
             .map(to_js_string)
@@ -68,8 +64,8 @@ pub async fn connections_app_create(cx: &mut Cx) -> Result<()> {
             search.push_str(&format!("/{}/{}", segs[1], segs[2]));
         }
     }
-    let colored = resolve(&cx.u("coloredIconPath"));
-    let outline = resolve(&cx.u("outlineIconPath"));
+    let colored = util::resolve(&cx.u("coloredIconPath"));
+    let outline = util::resolve(&cx.u("outlineIconPath"));
     let file_name = |p: &str| {
         std::path::Path::new(p)
             .file_name()
@@ -146,16 +142,14 @@ async fn community_by_name(name: &str, select: &str) -> Result<Value> {
         eqp(name)
     ))
     .await?;
-    match items.len() {
-        0 => Err(Error::js(format!(
+    m365_core::runner::pick_one(
+        &items,
+        "id",
+        Error::js(format!(
             "The specified Viva Engage community '{name}' does not exist."
-        ))),
-        1 => Ok(items.into_iter().next().unwrap_or(Value::Null)),
-        _ => m365_core::runner::handle_multiple_results(
-            &format!("Multiple Viva Engage communities with name '{name}' found."),
-            &util::array_to_hash_table("id", &items),
-        ),
-    }
+        )),
+        &format!("Multiple Viva Engage communities with name '{name}' found."),
+    )
 }
 
 async fn community_by_group(group: &str, select: &str) -> Result<Value> {
@@ -180,19 +174,17 @@ async fn role_id_by_name(name: &str) -> Result<String> {
         .into_iter()
         .filter(|r| s(r, "displayName").to_lowercase() == name.to_lowercase())
         .collect();
-    match roles.len() {
-        0 => Err(Error::js(format!(
-            "The specified Viva Engage role '{name}' does not exist."
-        ))),
-        1 => Ok(u(&roles[0], "id")),
-        _ => Ok(u(
-            &m365_core::runner::handle_multiple_results(
-                &format!("Multiple Viva Engage roles with name '{name}' found."),
-                &util::array_to_hash_table("id", &roles),
-            )?,
+    Ok(u(
+        &m365_core::runner::pick_one(
+            &roles,
             "id",
-        )),
-    }
+            Error::js(format!(
+                "The specified Viva Engage role '{name}' does not exist."
+            )),
+            &format!("Multiple Viva Engage roles with name '{name}' found."),
+        )?,
+        "id",
+    ))
 }
 
 pub fn community_add_refine(i: usize, o: &Obj) -> std::result::Result<bool, String> {
@@ -323,11 +315,7 @@ async fn community_id(cx: &Cx) -> Result<String> {
 }
 
 pub async fn community_remove(cx: &mut Cx) -> Result<()> {
-    let what = cx
-        .s("id")
-        .or_else(|| cx.s("displayName"))
-        .or_else(|| cx.s("entraGroupId"))
-        .unwrap_or_else(|| "undefined".into());
+    let what = cx.first_u(&["id", "displayName", "entraGroupId"]);
     if !cx.proceed(
         "force",
         &format!("Are you sure you want to remove Viva Engage community '{what}'?"),
@@ -425,7 +413,7 @@ pub async fn community_user_list(cx: &mut Cx) -> Result<()> {
     let tag = |items: Vec<Value>, role: &str| -> Vec<Value> {
         items
             .into_iter()
-            .map(|m| crate::planner::merge(m, &obj! { "roles": [role] }))
+            .map(|m| json::merge(m, &obj! { "roles": [role] }))
             .collect()
     };
     let (m, o) = (tag(members, "Member"), tag(owners, "Admin"));
@@ -439,15 +427,8 @@ pub async fn community_user_list(cx: &mut Cx) -> Result<()> {
 }
 
 pub async fn community_user_remove(cx: &mut Cx) -> Result<()> {
-    let who = cx
-        .s("id")
-        .or_else(|| cx.s("userName"))
-        .unwrap_or_else(|| "undefined".into());
-    let community = cx
-        .s("communityDisplayName")
-        .or_else(|| cx.s("communityId"))
-        .or_else(|| cx.s("entraGroupId"))
-        .unwrap_or_else(|| "undefined".into());
+    let who = cx.first_u(&["id", "userName"]);
+    let community = cx.first_u(&["communityDisplayName", "communityId", "entraGroupId"]);
     if !cx.proceed(
         "force",
         &format!("Are you sure you want to remove the user {who} from the community {community}?"),
@@ -705,14 +686,8 @@ pub async fn role_member_list(cx: &mut Cx) -> Result<()> {
 }
 
 pub async fn role_member_remove(cx: &mut Cx) -> Result<()> {
-    let who = cx
-        .s("userId")
-        .or_else(|| cx.s("userName"))
-        .unwrap_or_else(|| "undefined".into());
-    let role = cx
-        .s("roleId")
-        .or_else(|| cx.s("roleName"))
-        .unwrap_or_else(|| "undefined".into());
+    let who = cx.first_u(&["userId", "userName"]);
+    let role = cx.first_u(&["roleId", "roleName"]);
     if !cx.proceed(
         "force",
         &format!("Are you sure you want to remove user '{who}' from role '{role}'?"),

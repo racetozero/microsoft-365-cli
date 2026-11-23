@@ -445,11 +445,25 @@ pub async fn search(cx: &mut Cx) -> Result<()> {
             .json(body)
             .data()
             .await?;
-        result = m365_core::json::arr(&res, "value")
-            .first()
+        // `response.value[0].hitsContainers[0]` throws a TypeError when a
+        // level is missing, which also ends the `allResults` loop
+        let reading = |p: &str| {
+            Error::js(format!(
+                "Cannot read properties of undefined (reading '{p}')"
+            ))
+        };
+        let values = res.get("value").ok_or_else(|| reading("0"))?;
+        result = values
+            .get(0)
             .cloned()
-            .unwrap_or(Value::Null);
-        let container = result.get("hitsContainers").and_then(|h| h.get(0)).cloned();
+            .ok_or_else(|| reading("hitsContainers"))?;
+        let containers = result
+            .get("hitsContainers")
+            .filter(|h| m365_core::json::truthy(h));
+        let missing = if all { "moreResultsAvailable" } else { "hits" };
+        let container = containers
+            .map(|cs| cs.get(0).cloned().ok_or_else(|| reading(missing)))
+            .transpose()?;
         if all && let Some(c) = &container {
             all = c
                 .get("moreResultsAvailable")

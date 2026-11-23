@@ -172,15 +172,7 @@ impl Parser<'_> {
 
     fn set_arg(&mut self, key: &str, v: Raw) {
         let value = self.coerce(key, v);
-        let mut keys = vec![key.to_string()];
-        if let Some(s) = self.flags.aliases.get(key) {
-            keys.push(s.clone());
-        }
-        for (l, s) in &self.flags.aliases {
-            if s == key {
-                keys.push(l.clone());
-            }
-        }
+        let keys = self.flags.names(key);
         let is_bool = self.flags.is_bool(key);
         for k in keys {
             let value = value.clone();
@@ -220,8 +212,7 @@ impl Parser<'_> {
 
 fn parse_float(s: &str) -> f64 {
     // enough for looksLikeNumber inputs
-    if let Some(h) = s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")) {
-        let _ = h;
+    if s.starts_with("0x") || s.starts_with("0X") {
         return 0.0;
     }
     s.parse::<f64>().unwrap_or(f64::NAN)
@@ -442,10 +433,8 @@ pub fn rewrite_args(args: &[String], booleans: &[&str]) -> Result<Vec<String>, S
             continue;
         }
         let prev = &args[i - 1];
-        if booleans
-            .iter()
-            .any(|t| *prev == format!("--{t}") || *prev == format!("-{t}"))
-        {
+        let flag = prev.strip_prefix("--").or_else(|| prev.strip_prefix('-'));
+        if flag.is_some_and(|f| booleans.contains(&f)) {
             let r = rewrite_boolean(arg);
             if r != "true" && r != "false" {
                 return Err(format!(

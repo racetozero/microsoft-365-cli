@@ -588,10 +588,11 @@ pub fn group_help(prefix: &str) -> String {
     out.push(String::new());
     out.push("Commands:".into());
     // below a suite, every command with its summary; at a suite, its resources
+    let below = format!("{prefix} ");
     let rows: Vec<(String, String)> = if prefix.contains(' ') {
         manifest::COMMANDS
             .iter()
-            .filter(|c| c.name.starts_with(&format!("{prefix} ")))
+            .filter(|c| c.name.starts_with(&below))
             .map(|c| {
                 (
                     c.name[prefix.len() + 1..].to_string(),
@@ -685,11 +686,10 @@ fn root_help() -> String {
 
 /// Group or root help for `--help --agent`: every command below `prefix`.
 pub fn group_help_json(prefix: &str) -> Value {
+    let below = format!("{prefix} ");
     let commands: Vec<Value> = manifest::COMMANDS
         .iter()
-        .filter(|c| {
-            prefix.is_empty() || c.name == prefix || c.name.starts_with(&format!("{prefix} "))
-        })
+        .filter(|c| prefix.is_empty() || c.name == prefix || c.name.starts_with(&below))
         .map(|c| json!({ "name": c.name, "summary": summary(c) }))
         .collect();
     let mut v = json!({ "group": prefix, "commands": commands });
@@ -710,10 +710,11 @@ pub fn group_help_json(prefix: &str) -> Value {
 
 /// Whether `prefix` names a group (some command starts with it).
 pub fn is_group(prefix: &str) -> bool {
+    let below = format!("{prefix} ");
     prefix.is_empty()
         || manifest::COMMANDS
             .iter()
-            .any(|c| c.name.starts_with(&format!("{prefix} ")))
+            .any(|c| c.name.starts_with(&below))
 }
 
 /// The upstream docs page of a command (`helpTarget` set to `web`).

@@ -49,10 +49,6 @@ pub fn get_state() -> RunState {
     state().lock().unwrap().clone()
 }
 
-pub fn update(f: impl FnOnce(&mut RunState)) {
-    f(&mut state().lock().unwrap());
-}
-
 pub fn debug() -> bool {
     state().lock().unwrap().debug
 }
@@ -96,26 +92,19 @@ pub fn end_capture() -> (String, String) {
     }
 }
 
-fn capturing_stdout(s: &str) -> bool {
+/// Adds `s` to the innermost capture of stdout or stderr, if one is open.
+fn capturing(s: &str, stderr: bool) -> bool {
     let mut c = capture().lock().unwrap();
-    match c.last_mut() {
-        Some(cap) => {
-            cap.stdout.push(s.to_string());
-            true
-        }
-        None => false,
+    let Some(cap) = c.last_mut() else {
+        return false;
+    };
+    if stderr {
+        &mut cap.stderr
+    } else {
+        &mut cap.stdout
     }
-}
-
-fn capturing_stderr(s: &str) -> bool {
-    let mut c = capture().lock().unwrap();
-    match c.last_mut() {
-        Some(cap) => {
-            cap.stderr.push(s.to_string());
-            true
-        }
-        None => false,
-    }
+    .push(s.to_string());
+    true
 }
 
 /// `console.log(message)`.
@@ -161,7 +150,7 @@ pub fn log(v: Value) -> Result<(), String> {
             options: s.options.clone(),
         };
         let text = output::format_output(s.meta, s.default_properties, &s.command_name, v, &opts)?;
-        capturing_stdout(&text);
+        capturing(&text, false);
         return Ok(());
     }
     if s.output == "none" {
@@ -179,7 +168,7 @@ pub fn log(v: Value) -> Result<(), String> {
 
 /// `logger.logRaw`.
 pub fn log_raw(text: &str) {
-    if capturing_stdout(text) {
+    if capturing(text, false) {
         return;
     }
     if crate::agent::enabled() {
@@ -194,7 +183,7 @@ pub fn log_raw(text: &str) {
 
 /// `logger.logToStderr`.
 pub fn log_stderr(text: &str) {
-    if capturing_stderr(text) {
+    if capturing(text, true) {
         return;
     }
     if output_none() {

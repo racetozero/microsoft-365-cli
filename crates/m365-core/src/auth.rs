@@ -136,7 +136,7 @@ pub struct Connection {
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub thumbprint: Option<String>,
     #[serde(default)]
-    pub access_tokens: indexmap_like::Map,
+    pub access_tokens: Obj,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub spo_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
@@ -151,10 +151,6 @@ pub struct Connection {
 
 fn common() -> String {
     "common".into()
-}
-
-pub mod indexmap_like {
-    pub type Map = serde_json::Map<String, serde_json::Value>;
 }
 
 pub const CERT_UNKNOWN: u8 = 0;
@@ -1064,7 +1060,7 @@ mod flows {
                         .to_string();
                     match code.as_str() {
                         "authorization_pending" if std::time::Instant::now() < expires => continue,
-                        "slow_down" => interval += 5,
+                        "slow_down" if std::time::Instant::now() < expires => interval += 5,
                         _ => {
                             let d = e
                                 .body()

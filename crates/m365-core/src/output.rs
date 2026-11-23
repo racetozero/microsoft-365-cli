@@ -485,15 +485,7 @@ pub fn format_output(
             items = items
                 .into_iter()
                 .map(|s| match s {
-                    Value::Object(o) => {
-                        let mut f = Obj::new();
-                        for p in props {
-                            if let Some(v) = o.get(*p) {
-                                f.insert((*p).to_string(), v.clone());
-                            }
-                        }
-                        Value::Object(f)
-                    }
+                    Value::Object(o) => Value::Object(crate::util::filter_object(&o, props)),
                     other => other,
                 })
                 .collect();

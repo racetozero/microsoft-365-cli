@@ -7,7 +7,7 @@
 //! binary embeds, and a test keeps them equal.
 
 use m365_core::agent::{self, Code};
-use m365_core::json::{Obj, stringify};
+use m365_core::json::Obj;
 use serde_json::Value;
 
 /// Every skill as (name, SKILL.md text). The first one is the core skill.
@@ -123,7 +123,6 @@ pub fn run(args: &[String]) -> i32 {
     }
     // plain Markdown, so `m365 skill m365-spo > SKILL.md` works
     println!("{}", text.trim_end());
-    let _ = stringify;
     0
 }
 

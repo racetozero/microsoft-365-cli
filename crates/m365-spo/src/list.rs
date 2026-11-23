@@ -1,20 +1,11 @@
 //! `spo list *` (except views, webhooks and default values).
 
 use crate::sp;
+use crate::sp::{first, ne, opt};
 use m365_core::prelude::*;
 use m365_core::ut::entra;
 use m365_core::ut::url as urlutil;
 use m365_core::validation::{self as v, Valid};
-
-fn ne(cx: &Cx, k: &str) -> Option<String> {
-    cx.s(k).filter(|s| !s.is_empty())
-}
-
-fn opt(cx: &Cx, k: &str) -> String {
-    cx.val(k)
-        .map(to_js_string)
-        .unwrap_or_else(|| "undefined".into())
-}
 
 fn so(o: &Obj, k: &str) -> Option<String> {
     o.get(k).filter(|v| truthy(v)).map(to_js_string)
@@ -383,35 +374,16 @@ pub async fn add(cx: &mut Cx) -> Result<()> {
     )
 }
 
-fn list_seg(cx: &Cx, id: &str, title: &str, url: &str) -> String {
-    let web = cx.u("webUrl");
-    if let Some(i) = ne(cx, id) {
-        format!("lists(guid'{}')", eqp(&i))
-    } else if let Some(t) = ne(cx, title) {
-        format!("lists/getByTitle('{}')", eqp(&t))
-    } else if let Some(l) = ne(cx, url) {
-        format!(
-            "GetList('{}')",
-            eqp(&urlutil::get_server_relative_path(&web, &l))
-        )
-    } else {
-        String::new()
-    }
-}
-
 fn base(cx: &Cx) -> String {
     format!(
         "{}/_api/web/{}",
         cx.u("webUrl"),
-        list_seg(cx, "listId", "listTitle", "listUrl")
+        sp::list_segment(cx, &cx.u("webUrl"), sp::LIST, "getByTitle").unwrap_or_default()
     )
 }
 
 fn label(cx: &Cx) -> String {
-    ["listId", "listTitle", "listUrl"]
-        .iter()
-        .find_map(|k| ne(cx, k))
-        .unwrap_or_else(|| "undefined".into())
+    first(cx, &sp::LIST)
 }
 
 pub async fn contenttype_add(cx: &mut Cx) -> Result<()> {
@@ -902,10 +874,12 @@ pub async fn retentionlabel_remove(cx: &mut Cx) -> Result<()> {
 }
 
 fn rest_base(cx: &Cx) -> String {
-    format!("{}/_api/web{}", cx.u("webUrl"), {
-        let s = list_seg(cx, "listId", "listTitle", "listUrl");
-        if s.is_empty() { s } else { format!("/{s}") }
-    })
+    let web = cx.u("webUrl");
+    let seg = sp::list_segment(cx, &web, sp::LIST, "getByTitle");
+    format!(
+        "{web}/_api/web{}",
+        seg.map(|s| format!("/{s}")).unwrap_or_default()
+    )
 }
 
 pub async fn sensitivitylabel_ensure(cx: &mut Cx) -> Result<()> {
@@ -969,11 +943,11 @@ pub async fn sensitivitylabel_remove(cx: &mut Cx) -> Result<()> {
 // ---- role assignments / inheritance -------------------------------------------
 
 fn role_base(cx: &Cx) -> String {
-    let s = list_seg(cx, "listId", "listTitle", "listUrl");
+    let web = cx.u("webUrl");
+    let seg = sp::list_segment(cx, &web, sp::LIST, "getByTitle");
     format!(
-        "{}/_api/web/{}",
-        cx.u("webUrl"),
-        if s.is_empty() { s } else { format!("{s}/") }
+        "{web}/_api/web/{}",
+        seg.map(|s| format!("{s}/")).unwrap_or_default()
     )
 }
 
@@ -1117,7 +1091,10 @@ pub async fn set(cx: &mut Cx) -> Result<()> {
         body.insert("Title".into(), t.clone());
     }
     map_props(cx, &mut body, true);
-    let url = format!("{web}/_api/web/{}/", list_seg(cx, "id", "title", "url"));
+    let url = format!(
+        "{web}/_api/web/{}/",
+        sp::list_segment(cx, &web, ["id", "title", "url"], "getByTitle").unwrap_or_default()
+    );
     let url = if url.ends_with("//") {
         url[..url.len() - 1].to_string()
     } else {

@@ -1,31 +1,19 @@
 //! `spo contenttype *` and `spo contenttypehub get`.
 
 use crate::sp;
+use crate::sp::{ex, ne};
 use m365_core::prelude::*;
 use m365_core::ut::spo;
 use m365_core::ut::url as urlutil;
-
-fn ne(cx: &Cx, k: &str) -> Option<String> {
-    cx.s(k).filter(|s| !s.is_empty())
-}
 
 fn has_list(cx: &Cx) -> bool {
     ne(cx, "listId").is_some() || ne(cx, "listTitle").is_some() || ne(cx, "listUrl").is_some()
 }
 
 fn list_path(cx: &Cx, web: &str) -> String {
-    if let Some(i) = ne(cx, "listId") {
-        format!("/lists(guid'{}')", eqp(&i))
-    } else if let Some(t) = ne(cx, "listTitle") {
-        format!("/lists/getByTitle('{}')", eqp(&t))
-    } else if let Some(l) = ne(cx, "listUrl") {
-        format!(
-            "/GetList('{}')",
-            eqp(&urlutil::get_server_relative_path(web, &l))
-        )
-    } else {
-        String::new()
-    }
+    sp::list_segment(cx, web, sp::LIST, "getByTitle")
+        .map(|s| format!("/{s}"))
+        .unwrap_or_default()
 }
 
 async fn list_id(cx: &Cx, web: &str) -> Result<String> {
@@ -36,10 +24,6 @@ async fn list_id(cx: &Cx, web: &str) -> Result<String> {
         ne(cx, "listUrl").as_deref(),
     )
     .await
-}
-
-fn ex(cx: &Cx, k: &str) -> String {
-    util::escape_xml_value(cx.val(k))
 }
 
 pub async fn add(cx: &mut Cx) -> Result<()> {

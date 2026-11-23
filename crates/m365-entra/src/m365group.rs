@@ -423,11 +423,7 @@ async fn deleted_group_id(cx: &Cx, as_error: bool) -> Result<String> {
 }
 
 pub async fn recyclebinitem_remove(cx: &mut Cx) -> Result<()> {
-    let what = cx
-        .s("id")
-        .or_else(|| cx.s("displayName"))
-        .or_else(|| cx.s("mailNickname"))
-        .unwrap_or_else(|| "undefined".into());
+    let what = cx.first_u(&["id", "displayName", "mailNickname"]);
     if !cx.proceed(
         "force",
         &format!("Are you sure you want to remove the group '{what}'?"),
@@ -443,11 +439,7 @@ pub async fn recyclebinitem_remove(cx: &mut Cx) -> Result<()> {
 }
 
 pub async fn recyclebinitem_restore(cx: &mut Cx) -> Result<()> {
-    let what = cx
-        .s("id")
-        .or_else(|| cx.s("displayName"))
-        .or_else(|| cx.s("mailNickname"))
-        .unwrap_or_else(|| "undefined".into());
+    let what = cx.first_u(&["id", "displayName", "mailNickname"]);
     cx.verbose_log(&format!("Restoring Microsoft 365 Group: {what}..."));
     let id = deleted_group_id(cx, false).await?;
     Request::post(format!("{GRAPH}/v1.0/directory/deleteditems/{id}/restore"))
@@ -460,10 +452,7 @@ pub async fn recyclebinitem_restore(cx: &mut Cx) -> Result<()> {
 }
 
 pub async fn remove(cx: &mut Cx) -> Result<()> {
-    let what = cx
-        .s("id")
-        .or_else(|| cx.s("displayName"))
-        .unwrap_or_else(|| "undefined".into());
+    let what = cx.first_u(&["id", "displayName"]);
     if !cx.proceed(
         "force",
         &format!("Are you sure you want to remove the group {what}?"),
@@ -711,10 +700,7 @@ async fn group_or_team_id(cx: &Cx, verbose_msg: &str) -> Result<String> {
     if let Some(t) = cx.s("teamId") {
         return Ok(t);
     }
-    let name = cx
-        .s("groupName")
-        .or_else(|| cx.s("teamName"))
-        .unwrap_or_else(|| "undefined".into());
+    let name = cx.first_u(&["groupName", "teamName"]);
     cx.verbose_log(&verbose_msg.replace("{name}", &name));
     entra::group::id_by_display_name(&name).await
 }
@@ -859,16 +845,8 @@ pub async fn user_list(cx: &mut Cx) -> Result<()> {
 }
 
 pub async fn user_remove(cx: &mut Cx) -> Result<()> {
-    let who = cx
-        .s("userNames")
-        .or_else(|| cx.s("ids"))
-        .unwrap_or_else(|| "undefined".into());
-    let from = cx
-        .s("groupId")
-        .or_else(|| cx.s("groupName"))
-        .or_else(|| cx.s("teamId"))
-        .or_else(|| cx.s("teamName"))
-        .unwrap_or_else(|| "undefined".into());
+    let who = cx.first_u(&["userNames", "ids"]);
+    let from = cx.first_u(&["groupId", "groupName", "teamId", "teamName"]);
     if !cx.proceed(
         "force",
         &format!("Are you sure you want to remove {who} from {from}?"),

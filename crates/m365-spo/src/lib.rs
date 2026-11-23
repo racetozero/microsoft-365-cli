@@ -19,7 +19,6 @@ mod nav;
 mod page;
 mod site;
 mod sitedesign;
-#[allow(dead_code)]
 mod sp;
 mod tenant;
 mod tenant1;

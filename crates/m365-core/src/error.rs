@@ -163,7 +163,7 @@ impl Error {
         let r = (|| {
             if let Some(e) = &err
                 && let Some(m) = e.get("odata.error").and_then(|e| e.get("message"))
-                && truthy(Some(m))
+                && crate::json::truthy(m)
             {
                 return Error::value(m.get("value").cloned().unwrap_or(Value::Null));
             }
@@ -175,24 +175,24 @@ impl Error {
                 };
             };
             if let Some(m) = e.get("error").and_then(|x| x.get("message"))
-                && truthy(Some(m))
+                && crate::json::truthy(m)
             {
                 return Error::value(m.clone());
             }
             if let Some(m) = e.get("message")
-                && truthy(Some(m))
+                && crate::json::truthy(m)
             {
                 return Error::value(m.clone());
             }
             if let Some(m) = e.get("error_description")
-                && truthy(Some(m))
+                && crate::json::truthy(m)
             {
                 return Error::value(m.clone());
             }
             if let Value::String(s) = &e
                 && let Ok(parsed) = serde_json::from_str::<Value>(s)
                 && let Some(m) = parsed.get("error").and_then(|x| x.get("message"))
-                && truthy(Some(m))
+                && crate::json::truthy(m)
             {
                 return Error::value(m.clone());
             }
@@ -222,7 +222,7 @@ impl Error {
                 .error
                 .as_ref()
                 .and_then(|e| e.get("base"))
-                .filter(|b| truthy(Some(b)))
+                .filter(|b| crate::json::truthy(b))
             {
                 Some(b) => Error::value(b.clone()),
                 None => Error::msg(format!("AxiosError: {}", h.message())),
@@ -230,7 +230,7 @@ impl Error {
             Error::Thrown(v) => match v
                 .get("error")
                 .and_then(|e| e.get("base"))
-                .filter(|b| truthy(Some(b)))
+                .filter(|b| crate::json::truthy(b))
             {
                 Some(b) => Error::value(b.clone()),
                 None => Error::value(v.clone()),
@@ -291,10 +291,6 @@ impl Error {
             other => other,
         }
     }
-}
-
-fn truthy(v: Option<&Value>) -> bool {
-    crate::json::truthy_opt(v)
 }
 
 impl From<String> for Error {

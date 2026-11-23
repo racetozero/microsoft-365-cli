@@ -31,32 +31,6 @@ pub mod names {
     pub const PROMPT_LIST_PAGE_SIZE: &str = "promptListPageSize";
     pub const SHOW_HELP_ON_FAILURE: &str = "showHelpOnFailure";
     pub const TENANT_ID: &str = "tenantId";
-
-    pub const ALL: &[&str] = &[
-        AUTH_TYPE,
-        AUTO_OPEN_LINKS_IN_BROWSER,
-        CLIENT_ID,
-        CLIENT_SECRET,
-        CLIENT_CERTIFICATE_FILE,
-        CLIENT_CERTIFICATE_BASE64_ENCODED,
-        CLIENT_CERTIFICATE_PASSWORD,
-        COPY_DEVICE_CODE_TO_CLIPBOARD,
-        CSV_ESCAPE,
-        CSV_HEADER,
-        CSV_QUOTE,
-        CSV_QUOTED,
-        CSV_QUOTED_EMPTY,
-        DISABLE_TELEMETRY,
-        ERROR_OUTPUT,
-        HELP_MODE,
-        HELP_TARGET,
-        OUTPUT,
-        PRINT_ERRORS_AS_PLAIN_TEXT,
-        PROMPT,
-        PROMPT_LIST_PAGE_SIZE,
-        SHOW_HELP_ON_FAILURE,
-        TENANT_ID,
-    ];
 }
 
 pub fn home() -> PathBuf {

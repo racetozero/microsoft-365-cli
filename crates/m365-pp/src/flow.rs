@@ -177,15 +177,10 @@ pub async fn export(cx: &mut Cx) -> Result<()> {
             .unwrap_or_else(|| "undefined".into());
         format!("{dn}.json")
     } else {
-        // /([^/]+\.zip)/i
-        let lower = download.to_lowercase();
-        lower
-            .find(".zip")
-            .map(|end| {
-                let start = download[..end].rfind('/').map(|i| i + 1).unwrap_or(0);
-                download[start..end + 4].to_string()
-            })
-            .unwrap_or_else(|| "output.zip".into())
+        static ZIP: std::sync::LazyLock<regex::Regex> =
+            std::sync::LazyLock::new(|| regex::Regex::new(r"(?i)[^/]+\.zip").unwrap());
+        ZIP.find(&download)
+            .map_or_else(|| "output.zip".into(), |m| m.as_str().to_string())
     };
     let file_name = safe_file_name(&file_name);
     cx.verbose_log(&format!("Filename from PowerApps API: {file_name}."));
@@ -346,12 +341,7 @@ async fn principal(cx: &Cx) -> Result<String> {
 }
 
 pub async fn owner_ensure(cx: &mut Cx) -> Result<()> {
-    let who = cx
-        .s("userId")
-        .or_else(|| cx.s("userName"))
-        .or_else(|| cx.s("groupId"))
-        .or_else(|| cx.s("groupName"))
-        .unwrap_or_else(|| "undefined".into());
+    let who = cx.first_u(&["userId", "userName", "groupId", "groupName"]);
     cx.verbose_log(&format!(
         "Assigning permissions for {who} with permissions {} to Power Automate flow {}",
         cx.u("roleName"),
@@ -404,23 +394,13 @@ pub async fn owner_list(cx: &mut Cx) -> Result<()> {
 }
 
 pub async fn owner_remove(cx: &mut Cx) -> Result<()> {
-    let who = cx
-        .s("userId")
-        .or_else(|| cx.s("userName"))
-        .or_else(|| cx.s("groupId"))
-        .or_else(|| cx.s("groupName"))
-        .unwrap_or_else(|| "undefined".into());
+    let who = cx.first_u(&["userId", "userName", "groupId", "groupName"]);
     cx.verbose_log(&format!(
         "Removing owner {who} from flow {} in environment {}",
         cx.u("flowName"),
         cx.u("environmentName")
     ));
-    let what = cx
-        .s("groupId")
-        .or_else(|| cx.s("groupName"))
-        .or_else(|| cx.s("userId"))
-        .or_else(|| cx.s("userName"))
-        .unwrap_or_else(|| "undefined".into());
+    let what = cx.first_u(&["groupId", "groupName", "userId", "userName"]);
     if !cx.proceed(
         "force",
         &format!("Are you sure you want to remove owner '{what}' from the specified flow?"),
@@ -630,10 +610,7 @@ pub async fn run_get(cx: &mut Cx) -> Result<()> {
     }
     if let Some(o) = r.as_object_mut() {
         for (k, v) in extra {
-            match v {
-                Some(v) => o.insert(k.into(), v),
-                None => o.shift_remove(k),
-            };
+            m365_core::json::assign(o, k, v);
         }
     }
     cx.log(r)

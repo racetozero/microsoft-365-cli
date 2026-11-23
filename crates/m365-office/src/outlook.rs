@@ -24,16 +24,14 @@ async fn group_by_name(user: &str, name: &str, properties: Option<&str>) -> Resu
         url.push_str(&format!("&$select={p}"));
     }
     let items = odata::get_all_items(&url).await?;
-    match items.len() {
-        0 => Err(Error::js(format!(
+    m365_core::runner::pick_one(
+        &items,
+        "id",
+        Error::js(format!(
             "The specified calendar group '{name}' does not exist."
-        ))),
-        1 => Ok(items.into_iter().next().unwrap_or(Value::Null)),
-        _ => m365_core::runner::handle_multiple_results(
-            &format!("Multiple calendar groups with name '{name}' found."),
-            &util::array_to_hash_table("id", &items),
-        ),
-    }
+        )),
+        &format!("Multiple calendar groups with name '{name}' found."),
+    )
 }
 
 /// `calendar.getUserCalendarByName`.
@@ -55,16 +53,12 @@ async fn calendar_by_name(
         url.push_str(&format!("&$select={p}"));
     }
     let items = odata::get_all_items(&url).await?;
-    match items.len() {
-        0 => Err(Error::js(format!(
-            "The specified calendar '{name}' does not exist."
-        ))),
-        1 => Ok(items.into_iter().next().unwrap_or(Value::Null)),
-        _ => m365_core::runner::handle_multiple_results(
-            &format!("Multiple calendars with name '{name}' found."),
-            &util::array_to_hash_table("id", &items),
-        ),
-    }
+    m365_core::runner::pick_one(
+        &items,
+        "id",
+        Error::js(format!("The specified calendar '{name}' does not exist.")),
+        &format!("Multiple calendars with name '{name}' found."),
+    )
 }
 
 async fn group_id_opt(cx: &Cx, user: &str) -> Result<Option<String>> {
@@ -361,10 +355,7 @@ pub async fn calendargroup_list(cx: &mut Cx) -> Result<()> {
 }
 
 pub async fn calendargroup_remove(cx: &mut Cx) -> Result<()> {
-    let what = cx
-        .s("id")
-        .or_else(|| cx.s("name"))
-        .unwrap_or_else(|| "undefined".into());
+    let what = cx.first_u(&["id", "name"]);
     if !cx.proceed(
         "force",
         &format!("Are you sure you want to remove calendar group '{what}'?"),
@@ -709,29 +700,7 @@ pub async fn event_get(cx: &mut Cx) -> Result<()> {
 
 pub async fn event_list(cx: &mut Cx) -> Result<()> {
     cx.verbose_log("Getting a list of the events...");
-    let mut q = Vec::new();
-    if let Some(p) = cx.s("properties") {
-        let all: Vec<&str> = p.split(',').collect();
-        let sel: Vec<&str> = all.iter().copied().filter(|x| !x.contains('/')).collect();
-        let exp: Vec<&str> = all.iter().copied().filter(|x| x.contains('/')).collect();
-        if !sel.is_empty() {
-            q.push(format!("$select={}", sel.join(",")));
-        }
-        if !exp.is_empty() {
-            let e: Vec<String> = exp
-                .iter()
-                .map(|x| {
-                    let parts: Vec<&str> = x.split('/').collect();
-                    format!(
-                        "{}($select={})",
-                        parts[0],
-                        parts.get(1).copied().unwrap_or("undefined")
-                    )
-                })
-                .collect();
-            q.push(format!("$expand={}", e.join(",")));
-        }
-    }
+    let mut q = select_expand(cx.s("properties").as_deref());
     if cx.s("filter").is_some() || cx.s("startDateTime").is_some() || cx.s("endDateTime").is_some()
     {
         let mut f = cx.s("filter").unwrap_or_default();
@@ -749,11 +718,7 @@ pub async fn event_list(cx: &mut Cx) -> Result<()> {
         }
         q.push(format!("$filter={f}"));
     }
-    let qs = if q.is_empty() {
-        String::new()
-    } else {
-        format!("?{}", q.join("&"))
-    };
+    let qs = qs(&q);
     let user = user_ident(cx).unwrap_or_else(|| "undefined".into());
     let cal = match cx.s("calendarName") {
         Some(n) => Some(u(&calendar_by_name(&user, &n, None, None).await?, "id")),
@@ -1102,17 +1067,15 @@ async fn folder_by_name(user_url: &str, name: &str) -> Result<String> {
     .data()
     .await?;
     let v = arr(&r, "value");
-    match v.len() {
-        0 => Err(Error::msg(format!("Folder with name '{name}' not found"))),
-        1 => Ok(u(&v[0], "id")),
-        _ => Ok(u(
-            &m365_core::runner::handle_multiple_results(
-                &format!("Multiple folders with name '{name}' found."),
-                &util::array_to_hash_table("id", v),
-            )?,
+    Ok(u(
+        &m365_core::runner::pick_one(
+            v,
             "id",
-        )),
-    }
+            Error::msg(format!("Folder with name '{name}' not found")),
+            &format!("Multiple folders with name '{name}' found."),
+        )?,
+        "id",
+    ))
 }
 
 pub async fn message_list(cx: &mut Cx) -> Result<()> {

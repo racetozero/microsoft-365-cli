@@ -5,7 +5,7 @@ use crate::http::Request;
 use crate::json::{Obj, stringify_pretty};
 use crate::log;
 use crate::odata;
-use crate::util::{array_to_hash_table, encode_query_parameter};
+use crate::util::encode_query_parameter;
 use serde_json::Value;
 use std::sync::Mutex;
 
@@ -456,16 +456,14 @@ pub async fn get_by_app_name(name: &str, properties: Option<&[&str]>) -> Result<
         url.push_str(&format!("&$select={}", p.join(",")));
     }
     let apps = odata::get_all_items(&url).await?;
-    match apps.len() {
-        0 => Err(Error::js(format!(
+    crate::runner::pick_one(
+        &apps,
+        "id",
+        Error::js(format!(
             "App with name '{name}' not found in Microsoft Entra ID."
-        ))),
-        1 => Ok(apps.into_iter().next().unwrap()),
-        _ => crate::runner::handle_multiple_results(
-            &format!("Multiple apps with name '{name}' found in Microsoft Entra ID."),
-            &array_to_hash_table("id", &apps),
-        ),
-    }
+        )),
+        &format!("Multiple apps with name '{name}' found in Microsoft Entra ID."),
+    )
 }
 
 pub async fn get_by_object_id(object_id: &str, properties: Option<&[&str]>) -> Result<Value> {

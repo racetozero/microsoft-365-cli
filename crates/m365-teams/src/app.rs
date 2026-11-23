@@ -99,10 +99,7 @@ pub async fn publish(cx: &mut Cx) -> Result<()> {
 }
 
 pub async fn remove(cx: &mut Cx) -> Result<()> {
-    let what = cx
-        .s("id")
-        .or_else(|| cx.s("name"))
-        .unwrap_or_else(|| "undefined".into());
+    let what = cx.first_u(&["id", "name"]);
     if !cx.proceed(
         "force",
         &format!("Are you sure you want to remove the Teams app {what} from the app catalog?"),

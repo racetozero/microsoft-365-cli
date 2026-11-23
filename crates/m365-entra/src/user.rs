@@ -222,10 +222,7 @@ pub async fn license_list(cx: &mut Cx) -> Result<()> {
 }
 
 pub async fn license_remove(cx: &mut Cx) -> Result<()> {
-    let who = cx
-        .s("userId")
-        .or_else(|| cx.s("userName"))
-        .unwrap_or_else(|| "undefined".into());
+    let who = cx.first_u(&["userId", "userName"]);
     cx.verbose_log(&format!("Removing the licenses for the user '{who}'..."));
     if !cx.proceed(
         "force",
@@ -493,10 +490,7 @@ pub async fn registrationdetails_list(cx: &mut Cx) -> Result<()> {
 }
 
 pub async fn remove(cx: &mut Cx) -> Result<()> {
-    let who = cx
-        .s("id")
-        .or_else(|| cx.s("userName"))
-        .unwrap_or_else(|| "undefined".into());
+    let who = cx.first_u(&["id", "userName"]);
     cx.verbose_log(&format!("Removing user '{who}'..."));
     if !cx.proceed(
         "force",
@@ -512,10 +506,7 @@ pub async fn remove(cx: &mut Cx) -> Result<()> {
 }
 
 pub async fn session_revoke(cx: &mut Cx) -> Result<()> {
-    let who = cx
-        .s("userId")
-        .or_else(|| cx.s("userName"))
-        .unwrap_or_else(|| "undefined".into());
+    let who = cx.first_u(&["userId", "userName"]);
     if !cx.proceed(
         "force",
         &format!("This will revoke all sessions for the user '{who}', requiring the user to re-sign in from all devices. Are you sure?"),
@@ -584,10 +575,7 @@ pub async fn set(cx: &mut Cx) -> Result<()> {
             ));
         }
     }
-    let who = cx
-        .s("userName")
-        .or_else(|| cx.s("id"))
-        .unwrap_or_else(|| "undefined".into());
+    let who = cx.first_u(&["userName", "id"]);
     cx.verbose_log(&format!("Updating user {who}"));
     let ident = cx.s("id").unwrap_or_else(|| cx.u("userName"));
     let url = format!("{GRAPH}/v1.0/users/{}", eqp(&ident));
@@ -634,10 +622,7 @@ pub async fn set(cx: &mut Cx) -> Result<()> {
             .send()
             .await?;
     }
-    let user = cx
-        .s("id")
-        .or_else(|| cx.s("userName"))
-        .unwrap_or_else(|| "undefined".into());
+    let user = cx.first_u(&["id", "userName"]);
     if let Some(m) = cx.s("managerUserId").or_else(|| cx.s("managerUserName")) {
         cx.verbose_log(&format!("Updating the manager to {m}"));
         Request::put(format!("{GRAPH}/v1.0/users/{user}/manager/$ref"))

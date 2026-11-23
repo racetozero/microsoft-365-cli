@@ -409,10 +409,7 @@ pub async fn rule_list(cx: &mut Cx) -> Result<()> {
                 .and_then(|u| u.get("UserPrincipalName"))
                 .cloned();
             if let Some(o) = a.as_object_mut() {
-                match upn {
-                    Some(v) => o.insert("UserPrincipalName".into(), v),
-                    None => o.shift_remove("UserPrincipalName"),
-                };
+                m365_core::json::assign(o, "UserPrincipalName", upn);
             }
         }
     }

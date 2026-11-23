@@ -3,6 +3,8 @@
 //! write it back), matching upstream's markup and JSON byte for byte.
 
 use m365_core::prelude::*;
+use regex::Regex;
+use std::sync::LazyLock;
 
 /// `ClientSidePage.jsonToEscapedString`.
 pub fn json_to_escaped(v: &Value) -> String {
@@ -31,12 +33,8 @@ pub fn escaped_to_json(s: Option<&str>) -> Result<Value> {
     json::jparse(&r)
 }
 
-fn new_guid() -> String {
-    util::new_guid()
-}
-
 /// `regexIndexOf.call(s, re, start)`.
-fn regex_index_of(s: &str, re: &regex::Regex, start: usize) -> Option<usize> {
+fn regex_index_of(s: &str, re: &Regex, start: usize) -> Option<usize> {
     if start > s.len() {
         return None;
     }
@@ -44,19 +42,28 @@ fn regex_index_of(s: &str, re: &regex::Regex, start: usize) -> Option<usize> {
 }
 
 /// `getAttrValueFromString`: `null` when the attribute is missing.
-fn attr(html: &str, name: &str) -> Option<String> {
-    let re = regex::Regex::new(&format!(r#"(?i){name}="([^"]*?)""#)).ok()?;
+fn attr(html: &str, re: &Regex) -> Option<String> {
     re.captures(html).map(|c| c[1].to_string())
 }
 
+/// The attributes `attr` reads, as `(?i)name="([^"]*?)"`.
+fn attr_re(name: &str) -> Regex {
+    Regex::new(&format!(r#"(?i){name}="([^"]*?)""#)).unwrap()
+}
+static WEBPARTDATA: LazyLock<Regex> = LazyLock::new(|| attr_re("data-sp-webpartdata"));
+static CANVASDATAVERSION: LazyLock<Regex> = LazyLock::new(|| attr_re("data-sp-canvasdataversion"));
+static WEBPARTDATAVERSION: LazyLock<Regex> =
+    LazyLock::new(|| attr_re("data-sp-webpartdataversion"));
+static CONTROLDATA: LazyLock<Regex> = LazyLock::new(|| attr_re("data-sp-controldata"));
+
 /// `getBoundedDivMarkup`.
-fn bounded_divs(html: &str, start_re: &regex::Regex) -> Result<Vec<String>> {
+fn bounded_divs(html: &str, start_re: &Regex) -> Result<Vec<String>> {
     let clean: String = html
         .chars()
         .filter(|c| !matches!(c, '\t' | '\r' | '\n'))
         .collect();
-    let open = regex::Regex::new(r"(?i)<div[^>]*>").unwrap();
-    let close = regex::Regex::new(r"(?i)</div>").unwrap();
+    static OPEN: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)<div[^>]*>").unwrap());
+    static CLOSE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)</div>").unwrap());
     let mut out = Vec::new();
     let mut start = regex_index_of(&clean, start_re, 0);
     while let Some(si) = start {
@@ -64,8 +71,8 @@ fn bounded_divs(html: &str, start_re: &regex::Regex) -> Result<Vec<String>> {
         let mut search = si + 1;
         let next_close;
         loop {
-            let no = regex_index_of(&clean, &open, search).unwrap_or(clean.len() + 1);
-            let nc = regex_index_of(&clean, &close, search);
+            let no = regex_index_of(&clean, &OPEN, search).unwrap_or(clean.len() + 1);
+            let nc = regex_index_of(&clean, &CLOSE, search);
             let ncv = nc.map(|x| x as i64).unwrap_or(-1);
             if (no as i64) < ncv {
                 counter += 1;
@@ -142,7 +149,7 @@ impl Part {
             control_type: Some(Value::from(ty)),
             data_version: Some(Value::from("1.0")),
             order: Value::from(1),
-            id: Some(Value::from(new_guid())),
+            id: Some(Value::from(util::new_guid())),
             control_data: None,
             dynamic_data_paths: Value::Null,
             dynamic_data_values: Value::Null,
@@ -175,11 +182,13 @@ impl Part {
         match self.kind {
             Kind::Text => {
                 self.set_text("");
-                let rte = regex::Regex::new(r"(?i)<div[^>]*data-sp-rte[^>]*>").unwrap();
-                let inner =
-                    regex::Regex::new(r"(?i)^<div[^>]*data-sp-rte[^>]*>(.*?)</div>$").unwrap();
-                for s in bounded_divs(html, &rte)? {
-                    let t = inner
+                static RTE: LazyLock<Regex> =
+                    LazyLock::new(|| Regex::new(r"(?i)<div[^>]*data-sp-rte[^>]*>").unwrap());
+                static INNER: LazyLock<Regex> = LazyLock::new(|| {
+                    Regex::new(r"(?i)^<div[^>]*data-sp-rte[^>]*>(.*?)</div>$").unwrap()
+                });
+                for s in bounded_divs(html, &RTE)? {
+                    let t = INNER
                         .captures(&s)
                         .map(|c| c[1].to_string())
                         .unwrap_or_default();
@@ -187,14 +196,14 @@ impl Part {
                 }
             }
             Kind::WebPart => {
-                let data = escaped_to_json(attr(html, "data-sp-webpartdata").as_deref())?;
+                let data = escaped_to_json(attr(html, &WEBPARTDATA).as_deref())?;
                 self.title = data.get("title").cloned();
                 self.description = data.get("description").cloned();
                 self.web_part_id = data.get("id").cloned();
                 let fix =
                     |s: Option<String>| Value::from(s.unwrap_or_default().replacen("\\.", ".", 1));
-                self.canvas_data_version = Some(fix(attr(html, "data-sp-canvasdataversion")));
-                self.data_version = Some(fix(attr(html, "data-sp-webpartdataversion")));
+                self.canvas_data_version = Some(fix(attr(html, &CANVASDATAVERSION)));
+                self.data_version = Some(fix(attr(html, &WEBPARTDATAVERSION)));
                 extend(&mut self.propertie_json, data.get("properties"));
                 if let Some(v) = data.get("serverProcessedContent") {
                     self.server_processed_content = v.clone();
@@ -205,17 +214,20 @@ impl Part {
                 if let Some(v) = data.get("dynamicDataValues") {
                     self.dynamic_data_values = v.clone();
                 }
-                let hp =
-                    regex::Regex::new(r"(?i)<div\b[^>]*data-sp-htmlproperties[^>]*?>").unwrap();
-                let strip_open =
-                    regex::Regex::new(r"(?i)^<div\b[^>]*data-sp-htmlproperties[^>]*?>").unwrap();
-                let strip_close = regex::Regex::new(r"(?i)</div>$").unwrap();
-                let props = bounded_divs(html, &hp)?;
+                static HP: LazyLock<Regex> = LazyLock::new(|| {
+                    Regex::new(r"(?i)<div\b[^>]*data-sp-htmlproperties[^>]*?>").unwrap()
+                });
+                static STRIP_OPEN: LazyLock<Regex> = LazyLock::new(|| {
+                    Regex::new(r"(?i)^<div\b[^>]*data-sp-htmlproperties[^>]*?>").unwrap()
+                });
+                static STRIP_CLOSE: LazyLock<Regex> =
+                    LazyLock::new(|| Regex::new(r"(?i)</div>$").unwrap());
+                let props = bounded_divs(html, &HP)?;
                 self.html_properties = props
                     .first()
                     .map(|m| {
-                        strip_close
-                            .replace(&strip_open.replace(m, ""), "")
+                        STRIP_CLOSE
+                            .replace(&STRIP_OPEN.replace(m, ""), "")
                             .into_owned()
                     })
                     .unwrap_or_default();
@@ -433,9 +445,9 @@ fn base_from_html(
     ct: &mut Option<Value>,
     id: &mut Option<Value>,
 ) -> Result<()> {
-    let data = escaped_to_json(attr(html, "data-sp-controldata").as_deref())?;
+    let data = escaped_to_json(attr(html, &CONTROLDATA).as_deref())?;
     *dv = Some(
-        attr(html, "data-sp-canvasdataversion")
+        attr(html, &CANVASDATAVERSION)
             .map(Value::from)
             .unwrap_or(Value::Null),
     );
@@ -461,7 +473,7 @@ impl Column {
             order,
             factor,
             data_version: Some(Value::from("1.0")),
-            id: Some(Value::from(new_guid())),
+            id: Some(Value::from(util::new_guid())),
             control_data: None,
             controls: Vec::new(),
         }
@@ -545,7 +557,7 @@ impl Section {
                 .and_then(|p| p.get("zoneId"))
                 .filter(|z| truthy(z))
                 .cloned()
-                .unwrap_or_else(|| Value::from(new_guid())),
+                .unwrap_or_else(|| Value::from(util::new_guid())),
             zone_group_metadata: control_data
                 .as_ref()
                 .and_then(|c| c.get("zoneGroupMetadata"))
@@ -633,10 +645,12 @@ impl ClientSidePage {
     /// `ClientSidePage.fromHtml`.
     pub fn from_html(html: &str) -> Result<ClientSidePage> {
         let mut page = ClientSidePage::default();
-        let start = regex::Regex::new(r"(?i)<div\b[^>]*data-sp-canvascontrol[^>]*?>").unwrap();
-        let ct_re = regex::Regex::new(r"(?i)controlType&quot;&#58;(\d*?)(,|&)").unwrap();
-        for markup in bounded_divs(html, &start)? {
-            let ct = match ct_re.captures(&markup) {
+        static START: LazyLock<Regex> =
+            LazyLock::new(|| Regex::new(r"(?i)<div\b[^>]*data-sp-canvascontrol[^>]*?>").unwrap());
+        static CONTROL_TYPE: LazyLock<Regex> =
+            LazyLock::new(|| Regex::new(r"(?i)controlType&quot;&#58;(\d*?)(,|&)").unwrap());
+        for markup in bounded_divs(html, &START)? {
+            let ct = match CONTROL_TYPE.captures(&markup) {
                 None => -1,
                 Some(c) => c[1].parse::<i64>().unwrap_or(i64::MIN),
             };
@@ -672,8 +686,7 @@ impl ClientSidePage {
                     if ct == 0 {
                         page.page_settings = Some(o);
                     } else {
-                        let data =
-                            escaped_to_json(attr(&markup, "data-sp-webpartdata").as_deref())?;
+                        let data = escaped_to_json(attr(&markup, &WEBPARTDATA).as_deref())?;
                         extend(&mut o.propertie_json, data.get("properties"));
                         if let Some(v) = data.get("serverProcessedContent") {
                             o.server_processed_content = v.clone();

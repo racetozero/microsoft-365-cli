@@ -20,7 +20,7 @@ impl SourceFile {
     fn read(path: &Path) -> SourceFile {
         SourceFile {
             path: path.to_string_lossy().into_owned(),
-            source: std::fs::read_to_string(path).ok().filter(|s| !s.is_empty()),
+            source: std::fs::read_to_string(path).ok(),
         }
     }
 }

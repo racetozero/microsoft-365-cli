@@ -166,16 +166,8 @@ pub async fn member_list(cx: &mut Cx) -> Result<()> {
 }
 
 pub async fn member_remove(cx: &mut Cx) -> Result<()> {
-    let target = cx
-        .s("id")
-        .or_else(|| cx.s("userName"))
-        .or_else(|| cx.s("groupName"))
-        .or_else(|| cx.s("deviceName"))
-        .unwrap_or_else(|| "undefined".into());
-    let unit = cx
-        .s("administrativeUnitId")
-        .or_else(|| cx.s("administrativeUnitName"))
-        .unwrap_or_else(|| "undefined".into());
+    let target = cx.first_u(&["id", "userName", "groupName", "deviceName"]);
+    let unit = cx.first_u(&["administrativeUnitId", "administrativeUnitName"]);
     if !cx.proceed(
         "force",
         &format!(
@@ -221,10 +213,7 @@ pub async fn member_remove(cx: &mut Cx) -> Result<()> {
 }
 
 pub async fn remove(cx: &mut Cx) -> Result<()> {
-    let what = cx
-        .s("id")
-        .or_else(|| cx.s("displayName"))
-        .unwrap_or_else(|| "undefined".into());
+    let what = cx.first_u(&["id", "displayName"]);
     if !cx.proceed(
         "force",
         &format!("Are you sure you want to remove administrative unit '{what}'?"),

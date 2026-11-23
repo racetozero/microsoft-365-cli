@@ -104,11 +104,6 @@ pub fn open_types_encoder(s: &str) -> String {
         .replace('#', "%23")
 }
 
-/// `formatting.rewriteBooleanValue`.
-pub fn rewrite_boolean_value(s: &str) -> String {
-    crate::args::rewrite_boolean(s)
-}
-
 /// `formatting.extractCsomGuid`.
 pub fn extract_csom_guid(s: &str) -> String {
     static RE: std::sync::LazyLock<regex::Regex> =
@@ -572,7 +567,7 @@ pub fn locale_compare(a: &str, b: &str) -> std::cmp::Ordering {
 }
 
 /// The message of a `JSON.parse` failure, close to V8's wording.
-pub fn js_json_error(_e: &serde_json::Error, text: &str) -> String {
+pub fn js_json_error(text: &str) -> String {
     format!("SyntaxError: {}", crate::json::v8_parse_error(text))
 }
 

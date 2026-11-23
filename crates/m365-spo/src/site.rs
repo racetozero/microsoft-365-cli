@@ -1,19 +1,10 @@
 //! `spo site *`.
 
 use crate::sp;
+use crate::sp::{ne, opt};
 use m365_core::prelude::*;
 use m365_core::ut::spo::{self, FormDigest};
 use m365_core::validation::{self as v, Valid};
-
-pub(crate) fn ne(cx: &Cx, k: &str) -> Option<String> {
-    cx.s(k).filter(|s| !s.is_empty())
-}
-
-pub(crate) fn opt(cx: &Cx, k: &str) -> String {
-    cx.val(k)
-        .map(to_js_string)
-        .unwrap_or_else(|| "undefined".into())
-}
 
 fn so(o: &Obj, k: &str) -> Option<String> {
     o.get(k).filter(|v| truthy(v)).map(to_js_string)

@@ -23,9 +23,9 @@ pub async fn get_all_items_req(req: Request) -> Result<Vec<Value>> {
     let mut items = Vec::new();
     let mut req = req;
     loop {
-        let res = req.clone().data().await?;
-        if let Some(Value::Array(v)) = res.get("value") {
-            items.extend(v.iter().cloned());
+        let mut res = req.clone().data().await?;
+        if let Some(Value::Array(v)) = res.get_mut("value") {
+            items.append(v);
         }
         let next = res
             .get("@odata.nextLink")

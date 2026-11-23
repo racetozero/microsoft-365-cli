@@ -21,10 +21,7 @@ fn hoist_body(cx: &Cx, items: &mut [Value]) {
         for i in items.iter_mut() {
             let c = i.get("body").and_then(|b| b.get("content")).cloned();
             if let Some(o) = i.as_object_mut() {
-                match c {
-                    Some(c) => o.insert("body".into(), c),
-                    None => o.shift_remove("body"),
-                };
+                m365_core::json::assign(o, "body", c);
             }
         }
     }
@@ -470,10 +467,7 @@ pub async fn user_app_upgrade(cx: &mut Cx) -> Result<()> {
             .unwrap_or_else(|| "undefined".into())
     ));
     cx.verbose_log("Retrieving app ID");
-    let who = cx
-        .s("userId")
-        .or_else(|| cx.s("userName"))
-        .unwrap_or_else(|| "undefined".into());
+    let who = cx.first_u(&["userId", "userName"]);
     let app = match cx.s("id") {
         Some(i) => i,
         None => {

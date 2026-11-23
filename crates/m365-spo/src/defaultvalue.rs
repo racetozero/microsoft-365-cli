@@ -1,19 +1,13 @@
 //! `spo list defaultvalue *`: default column values stored in the library's
 //! `Forms/client_LocationBasedDefaults.html`.
 
+use crate::sp::{self, first, ne};
 use m365_core::prelude::*;
 use m365_core::ut::url as urlutil;
 use m365_core::xml::{self, Element, Node};
 
-fn ne(cx: &Cx, k: &str) -> Option<String> {
-    cx.s(k).filter(|s| !s.is_empty())
-}
-
 fn label(cx: &Cx) -> String {
-    ["listId", "listTitle", "listUrl"]
-        .iter()
-        .find_map(|k| ne(cx, k))
-        .unwrap_or_else(|| "undefined".into())
+    first(cx, &sp::LIST)
 }
 
 /// `getServerRelativeListUrl`; `strict` is the clear/remove/set variant

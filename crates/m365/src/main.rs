@@ -12,11 +12,12 @@ fn specs() -> &'static [Spec] {
     m365_pp::register(&mut v);
     m365_spfx::register(&mut v);
     // the usage report commands share one implementation
-    for r in m365_core::report::specs() {
-        if !v.iter().any(|s| s.name == r.name) {
-            v.push(r);
-        }
-    }
+    let ported: std::collections::HashSet<&str> = v.iter().map(|s| s.name).collect();
+    v.extend(
+        m365_core::report::specs()
+            .into_iter()
+            .filter(|r| !ported.contains(r.name)),
+    );
     Box::leak(v.into_boxed_slice())
 }
 

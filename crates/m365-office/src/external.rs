@@ -143,7 +143,7 @@ pub async fn connection_doctor(cx: &mut Cx) -> Result<()> {
                     &format!("{} (manual)", ch.text),
                 )))?;
             }
-            results.push(planner_merge(base, &obj! { "status": "manual" }));
+            results.push(json::merge(base, &obj! { "status": "manual" }));
             continue;
         }
         // (status passed, errorMessage, error, shouldStop)
@@ -262,7 +262,7 @@ pub async fn connection_doctor(cx: &mut Cx) -> Result<()> {
             "status".into(),
             Value::from(if passed { "passed" } else { "failed" }),
         );
-        results.push(planner_merge(base, &Value::Object(r)));
+        results.push(json::merge(base, &Value::Object(r)));
         if passed {
             if show {
                 cx.log(Value::from(util::status(CheckStatus::Success, ch.text)))?;
@@ -340,19 +340,6 @@ pub async fn connection_doctor(cx: &mut Cx) -> Result<()> {
     }
 }
 
-fn planner_merge(a: Value, b: &Value) -> Value {
-    let mut a = match a {
-        Value::Object(o) => o,
-        _ => Obj::new(),
-    };
-    if let Some(b) = b.as_object() {
-        for (k, v) in b {
-            a.insert(k.clone(), v.clone());
-        }
-    }
-    Value::Object(a)
-}
-
 /// `ex?.response?.data?.error?.innerError?.message` (axios errors here have no `response`).
 fn inner_error(_e: &Error) -> Option<Value> {
     None
@@ -427,10 +414,7 @@ pub async fn connection_list(cx: &mut Cx) -> Result<()> {
 }
 
 pub async fn connection_remove(cx: &mut Cx) -> Result<()> {
-    let what = cx
-        .s("id")
-        .or_else(|| cx.s("name"))
-        .unwrap_or_else(|| "undefined".into());
+    let what = cx.first_u(&["id", "name"]);
     if !cx.proceed(
         "force",
         &format!("Are you sure you want to remove the external connection '{what}'?"),

@@ -57,6 +57,14 @@ impl Cx {
             .map(to_js_string)
     }
 
+    /// The first truthy option of `keys` as a string, or `"undefined"`
+    /// (`options.a || options.b` in a template literal).
+    pub fn first_u(&self, keys: &[&str]) -> String {
+        keys.iter()
+            .find_map(|k| self.s(k))
+            .unwrap_or_else(|| "undefined".into())
+    }
+
     pub fn bool(&self, k: &str) -> bool {
         self.opts.get(k).is_some_and(crate::json::truthy)
     }
@@ -118,15 +126,6 @@ impl Cx {
     /// `this.warn(logger, message)`.
     pub fn warn(&self, s: &str) {
         crate::log::warn(s)
-    }
-
-    /// `showDeprecationWarning`.
-    pub fn deprecation(&self, deprecated: &str, recommended: &str) {
-        if self.used_name.starts_with(deprecated) {
-            self.warn(&format!(
-                "Command '{deprecated}' is deprecated. Please use '{recommended}' instead."
-            ));
-        }
     }
 
     /// `cli.promptForConfirmation({ message })`. In agent mode fails with

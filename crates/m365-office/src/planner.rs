@@ -3,20 +3,6 @@
 use m365_core::prelude::*;
 use m365_core::ut::{entra, planner};
 
-/// `{ ...a, ...b }`.
-pub fn merge(a: Value, b: &Value) -> Value {
-    let mut a = match a {
-        Value::Object(o) => o,
-        _ => Obj::new(),
-    };
-    if let Some(b) = b.as_object() {
-        for (k, v) in b {
-            a.insert(k.clone(), v.clone());
-        }
-    }
-    Value::Object(a)
-}
-
 async fn group_id(cx: &Cx) -> Result<String> {
     match cx.s("ownerGroupId") {
         Some(g) => Ok(g),
@@ -86,10 +72,7 @@ async fn bucket_minimal(cx: &Cx) -> Result<Value> {
 }
 
 pub async fn bucket_remove(cx: &mut Cx) -> Result<()> {
-    let what = cx
-        .s("id")
-        .or_else(|| cx.s("name"))
-        .unwrap_or_else(|| "undefined".into());
+    let what = cx.first_u(&["id", "name"]);
     if !cx.proceed(
         "force",
         &format!("Are you sure you want to remove the bucket {what}?"),
@@ -226,7 +209,7 @@ pub async fn plan_add(cx: &mut Cx) -> Result<()> {
             .json_response()
             .data()
             .await?;
-        Ok::<Value, Error>(merge(plan, &d))
+        Ok::<Value, Error>(json::merge(plan, &d))
     }
     .await;
     match r {
@@ -256,7 +239,7 @@ async fn plan_details(plan: Value) -> Result<Value> {
     .header("Prefer", "return=representation")
     .data()
     .await?;
-    Ok(merge(plan, &d))
+    Ok(json::merge(plan, &d))
 }
 
 pub async fn plan_get(cx: &mut Cx) -> Result<()> {
@@ -282,10 +265,7 @@ pub async fn plan_list(cx: &mut Cx) -> Result<()> {
 }
 
 pub async fn plan_remove(cx: &mut Cx) -> Result<()> {
-    let what = cx
-        .s("id")
-        .or_else(|| cx.s("title"))
-        .unwrap_or_else(|| "undefined".into());
+    let what = cx.first_u(&["id", "title"]);
     if !cx.proceed(
         "force",
         &format!("Are you sure you want to remove the plan {what}?"),
@@ -362,7 +342,7 @@ pub async fn plan_set(cx: &mut Cx) -> Result<()> {
         .json_response()
         .data()
         .await?;
-    cx.log(merge(plan, &d))
+    cx.log(json::merge(plan, &d))
 }
 
 // ---- roster --------------------------------------------------------------------
@@ -411,16 +391,10 @@ pub async fn roster_member_add(cx: &mut Cx) -> Result<()> {
     cx.log(r)
 }
 
-fn name_or_id(cx: &Cx) -> String {
-    cx.s("userName")
-        .or_else(|| cx.s("userId"))
-        .unwrap_or_else(|| "undefined".into())
-}
-
 pub async fn roster_member_get(cx: &mut Cx) -> Result<()> {
     cx.verbose_log(&format!(
         "Retrieving member {} from the Microsoft Planner Roster",
-        name_or_id(cx)
+        cx.first_u(&["userName", "userId"])
     ));
     let uid = roster_user_id(cx).await?;
     let r = Request::get(format!(
@@ -447,12 +421,9 @@ pub async fn roster_member_list(cx: &mut Cx) -> Result<()> {
 pub async fn roster_member_remove(cx: &mut Cx) -> Result<()> {
     cx.verbose_log(&format!(
         "Removing member {} from the Microsoft Planner Roster",
-        name_or_id(cx)
+        cx.first_u(&["userName", "userId"])
     ));
-    let who = cx
-        .s("userId")
-        .or_else(|| cx.s("userName"))
-        .unwrap_or_else(|| "undefined".into());
+    let who = cx.first_u(&["userId", "userName"]);
     if !cx.proceed(
         "force",
         &format!("Are you sure you want to remove member '{who}'?"),
@@ -766,7 +737,7 @@ pub async fn task_add(cx: &mut Cx) -> Result<()> {
         let tid = u(&task, "id");
         let tag = task_details_etag(&tid).await?;
         let d = patch_details(&tid, tag, obj! { "description": ?cx.val("description").cloned(), "previewType": ?cx.val("previewType").cloned() }).await?;
-        merge(task, &d)
+        json::merge(task, &d)
     };
     if result.get("description").is_some_and(truthy) {
         result
@@ -802,7 +773,7 @@ fn checklist_output(cx: &Cx, checklist: Option<Value>) -> Result<()> {
         .as_object()
         .map(|o| {
             o.iter()
-                .map(|(k, v)| merge(obj! { "id": k.as_str() }, v))
+                .map(|(k, v)| json::merge(obj! { "id": k.as_str() }, v))
                 .collect()
         })
         .unwrap_or_default();
@@ -891,19 +862,15 @@ async fn task_id_by_title(cx: &Cx) -> Result<String> {
         })
         .cloned()
         .collect();
-    match tasks.len() {
-        0 => Err(Error::msg(format!(
-            "The specified task {title} does not exist"
-        ))),
-        1 => Ok(u(&tasks[0], "id")),
-        _ => Ok(u(
-            &cx.handle_multiple_results(
-                &format!("Multiple tasks with title '{title}' found."),
-                &util::array_to_hash_table("id", &tasks),
-            )?,
+    Ok(u(
+        &m365_core::runner::pick_one(
+            &tasks,
             "id",
-        )),
-    }
+            Error::msg(format!("The specified task {title} does not exist")),
+            &format!("Multiple tasks with title '{title}' found."),
+        )?,
+        "id",
+    ))
 }
 
 pub async fn task_get(cx: &mut Cx) -> Result<()> {
@@ -920,7 +887,7 @@ pub async fn task_get(cx: &mut Cx) -> Result<()> {
     .header("Prefer", "return=representation")
     .data()
     .await?;
-    cx.log(merge(task, &d))
+    cx.log(json::merge(task, &d))
 }
 
 pub async fn task_list(cx: &mut Cx) -> Result<()> {
@@ -1059,10 +1026,7 @@ pub async fn task_reference_remove(cx: &mut Cx) -> Result<()> {
 }
 
 pub async fn task_remove(cx: &mut Cx) -> Result<()> {
-    let what = cx
-        .s("id")
-        .or_else(|| cx.s("title"))
-        .unwrap_or_else(|| "undefined".into());
+    let what = cx.first_u(&["id", "title"]);
     if !cx.proceed(
         "force",
         &format!("Are you sure you want to remove the task {what}?"),
@@ -1162,7 +1126,7 @@ pub async fn task_set(cx: &mut Cx) -> Result<()> {
             let tid = u(&task, "id");
             let tag = task_details_etag(&tid).await?;
             let d = patch_details(&tid, tag, obj! { "description": desc }).await?;
-            merge(task, &d)
+            json::merge(task, &d)
         }
     };
     cx.log(result)

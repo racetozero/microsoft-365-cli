@@ -1,46 +1,19 @@
 //! `spo list view *`, `spo list webhook *` and `spo list sitescript get`.
 
 use crate::list::validate_url_guid;
+use crate::sp::{self, first, ne, opt};
 use m365_core::prelude::*;
 use m365_core::time;
 use m365_core::ut::url as urlutil;
 use m365_core::validation as v;
 
-fn ne(cx: &Cx, k: &str) -> Option<String> {
-    cx.s(k).filter(|s| !s.is_empty())
-}
-
-fn opt(cx: &Cx, k: &str) -> String {
-    cx.val(k)
-        .map(to_js_string)
-        .unwrap_or_else(|| "undefined".into())
-}
-
 fn so(o: &Obj, k: &str) -> Option<String> {
     o.get(k).filter(|v| truthy(v)).map(to_js_string)
 }
 
-fn first(cx: &Cx, keys: &[&str]) -> String {
-    keys.iter()
-        .find_map(|k| ne(cx, k))
-        .unwrap_or_else(|| "undefined".into())
-}
-
 /// `lists(guid'...')` | `lists/GetByTitle('...')` | `GetList('...')`.
 fn selector(cx: &Cx, by_title: &str) -> String {
-    let web = cx.u("webUrl");
-    if let Some(i) = ne(cx, "listId") {
-        format!("lists(guid'{}')", eqp(&i))
-    } else if let Some(t) = ne(cx, "listTitle") {
-        format!("lists/{by_title}('{}')", eqp(&t))
-    } else if let Some(l) = ne(cx, "listUrl") {
-        format!(
-            "GetList('{}')",
-            eqp(&urlutil::get_server_relative_path(&web, &l))
-        )
-    } else {
-        String::new()
-    }
+    sp::list_segment(cx, &cx.u("webUrl"), sp::LIST, by_title).unwrap_or_default()
 }
 
 fn guid_msg(o: &Obj, k: &str, suffix: &str) -> std::result::Result<(), String> {

@@ -343,10 +343,7 @@ async fn rd_id(cx: &Cx) -> Result<String> {
 }
 
 pub async fn roledefinition_remove(cx: &mut Cx) -> Result<()> {
-    let what = cx
-        .s("id")
-        .or_else(|| cx.s("displayName"))
-        .unwrap_or_else(|| "undefined".into());
+    let what = cx.first_u(&["id", "displayName"]);
     if !cx.proceed(
         "force",
         &format!("Are you sure you want to remove role definition '{what}'?"),

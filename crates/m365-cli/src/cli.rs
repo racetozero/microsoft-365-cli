@@ -219,11 +219,6 @@ pub async fn completion_sh_update(cx: &mut Cx) -> Result<()> {
     generate_sh_completion()
 }
 
-pub async fn completion_pwsh_update(cx: &mut Cx) -> Result<()> {
-    cx.debug_log("Generating command completion...");
-    generate_sh_completion()
-}
-
 pub async fn completion_pwsh_setup(cx: &mut Cx) -> Result<()> {
     cx.debug_log("Generating command completion...");
     generate_sh_completion()?;
@@ -521,7 +516,7 @@ fn read_rc(on_error: impl Fn(&str) -> String) -> Result<Value> {
         return Ok(Value::Object(Obj::new()));
     }
     m365_core::json::parse(&text)
-        .map_err(|e| Error::msg(on_error(&m365_core::util::js_json_error(&e, &text))))
+        .map_err(|_| Error::msg(on_error(&m365_core::util::js_json_error(&text))))
 }
 
 fn write_rc(v: &Value, on_error: impl Fn(&str) -> String) -> Result<()> {

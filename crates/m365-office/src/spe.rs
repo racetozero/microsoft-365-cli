@@ -15,16 +15,12 @@ const OVERRIDABLES: [&str; 6] = [
 ];
 
 fn pick(items: Vec<Value>, name: &str, what: &str, multiple: &str, key: &str) -> Result<Value> {
-    match items.len() {
-        0 => Err(Error::js(format!(
-            "The specified {what} '{name}' does not exist."
-        ))),
-        1 => Ok(items.into_iter().next().unwrap_or(Value::Null)),
-        _ => m365_core::runner::handle_multiple_results(
-            &format!("Multiple {multiple} with name '{name}' found."),
-            &util::array_to_hash_table(key, &items),
-        ),
-    }
+    m365_core::runner::pick_one(
+        &items,
+        key,
+        Error::js(format!("The specified {what} '{name}' does not exist.")),
+        &format!("Multiple {multiple} with name '{name}' found."),
+    )
 }
 
 /// `spe.getContainerTypeIdByName`.
@@ -217,10 +213,7 @@ pub async fn container_permission_list(cx: &mut Cx) -> Result<()> {
 }
 
 pub async fn container_permission_remove(cx: &mut Cx) -> Result<()> {
-    let what = cx
-        .s("containerId")
-        .or_else(|| cx.s("containerName"))
-        .unwrap_or_else(|| "undefined".into());
+    let what = cx.first_u(&["containerId", "containerName"]);
     if !cx.proceed(
         "force",
         &format!(
@@ -290,10 +283,7 @@ async fn deleted_container(cx: &Cx) -> Result<String> {
 }
 
 pub async fn recyclebinitem_remove(cx: &mut Cx) -> Result<()> {
-    let what = cx
-        .s("id")
-        .or_else(|| cx.s("name"))
-        .unwrap_or_else(|| "undefined".into());
+    let what = cx.first_u(&["id", "name"]);
     if !cx.proceed(
         "force",
         &format!("Are you sure you want to permanently remove deleted container '{what}'?"),
@@ -322,10 +312,7 @@ pub async fn recyclebinitem_restore(cx: &mut Cx) -> Result<()> {
 }
 
 pub async fn container_remove(cx: &mut Cx) -> Result<()> {
-    let what = cx
-        .s("id")
-        .or_else(|| cx.s("name"))
-        .unwrap_or_else(|| "undefined".into());
+    let what = cx.first_u(&["id", "name"]);
     let verb = if cx.bool("permanent") {
         "permanently remove"
     } else {
@@ -456,10 +443,7 @@ async fn csom(admin: &str, body: String) -> Result<Value> {
 }
 
 pub async fn containertype_remove(cx: &mut Cx) -> Result<()> {
-    let what = cx
-        .s("id")
-        .or_else(|| cx.s("name"))
-        .unwrap_or_else(|| "undefined".into());
+    let what = cx.first_u(&["id", "name"]);
     if !cx.proceed(
         "force",
         &format!("Are you sure you want to remove container type {what}?"),

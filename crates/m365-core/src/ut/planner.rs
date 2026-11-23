@@ -5,8 +5,6 @@ use crate::error::{Error, Result};
 use crate::http::Request;
 use crate::json::{s, u};
 use crate::odata;
-use crate::runner::handle_multiple_results;
-use crate::util::array_to_hash_table;
 
 const GRAPH: &str = "https://graph.microsoft.com";
 
@@ -62,13 +60,12 @@ fn pick(items: Vec<Value>, key: &str, title: &str, what: &str, multiple: String)
         .into_iter()
         .filter(|p| !s(p, key).is_empty() && s(p, key).to_lowercase() == lower)
         .collect();
-    match f.len() {
-        0 => Err(Error::js(format!(
-            "The specified {what} '{title}' does not exist."
-        ))),
-        1 => Ok(f.into_iter().next().unwrap_or(Value::Null)),
-        _ => handle_multiple_results(&multiple, &array_to_hash_table("id", &f)),
-    }
+    crate::runner::pick_one(
+        &f,
+        "id",
+        Error::js(format!("The specified {what} '{title}' does not exist.")),
+        &multiple,
+    )
 }
 
 pub async fn plan_by_title(title: &str, group_id: &str, metadata: &str) -> Result<Value> {

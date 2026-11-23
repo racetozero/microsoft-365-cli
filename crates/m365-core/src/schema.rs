@@ -174,7 +174,6 @@ struct FieldResult {
 }
 
 fn check_field(
-    meta: &CmdMeta,
     f: &FieldMeta,
     raw: &Value,
     opts: &Obj,
@@ -394,7 +393,6 @@ fn check_field(
             issues.push(Issue::field(f.name, msg));
         }
     }
-    let _ = meta;
     FieldResult { value, aborted }
 }
 
@@ -503,7 +501,7 @@ pub fn validate(meta: &CmdMeta, opts: &Obj, hooks: &Hooks) -> Result<Obj, Vec<Is
                 }
             }
             Some(raw) => {
-                let r = check_field(meta, f, raw, opts, hooks, &mut issues, &mut deferred);
+                let r = check_field(f, raw, opts, hooks, &mut issues, &mut deferred);
                 aborted |= r.aborted;
                 out.insert(f.name.to_string(), r.value);
             }

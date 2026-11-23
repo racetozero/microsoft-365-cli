@@ -161,16 +161,8 @@ pub fn member_add_refine(_i: usize, o: &Obj) -> std::result::Result<bool, String
 }
 
 pub async fn member_add(cx: &mut Cx) -> Result<()> {
-    let who = cx
-        .s("userIds")
-        .or_else(|| cx.s("userNames"))
-        .or_else(|| cx.s("subgroupIds"))
-        .or_else(|| cx.s("subgroupNames"))
-        .unwrap_or_else(|| "undefined".into());
-    let grp = cx
-        .s("groupId")
-        .or_else(|| cx.s("groupName"))
-        .unwrap_or_else(|| "undefined".into());
+    let who = cx.first_u(&["userIds", "userNames", "subgroupIds", "subgroupNames"]);
+    let grp = cx.first_u(&["groupId", "groupName"]);
     cx.verbose_log(&format!("Adding member(s) {who} to group {grp}..."));
     let gid = group_id(cx, "Retrieving ID of group {name}...").await?;
     let ids = if cx.s("userIds").is_some() || cx.s("userNames").is_some() {
@@ -304,10 +296,7 @@ pub async fn member_remove(cx: &mut Cx) -> Result<()> {
         .or_else(|| cx.s("userNames"))
         .or_else(|| cx.s("subgroupIds"))
         .or_else(|| cx.s("subgroupNames"));
-    let grp = cx
-        .s("groupId")
-        .or_else(|| cx.s("groupName"))
-        .unwrap_or_else(|| "undefined".into());
+    let grp = cx.first_u(&["groupId", "groupName"]);
     if !cx.bool("force") {
         let n = principals.as_deref().unwrap_or("").split(',').count();
         if !cx.confirm(&format!(
@@ -373,14 +362,8 @@ pub async fn member_remove(cx: &mut Cx) -> Result<()> {
 }
 
 pub async fn member_set(cx: &mut Cx) -> Result<()> {
-    let who = cx
-        .s("userIds")
-        .or_else(|| cx.s("userNames"))
-        .unwrap_or_else(|| "undefined".into());
-    let grp = cx
-        .s("groupId")
-        .or_else(|| cx.s("groupName"))
-        .unwrap_or_else(|| "undefined".into());
+    let who = cx.first_u(&["userIds", "userNames"]);
+    let grp = cx.first_u(&["groupId", "groupName"]);
     cx.verbose_log(&format!(
         "Adding member(s) {who} to role {} of group {grp}...",
         cx.u("role")
@@ -407,10 +390,7 @@ pub async fn member_set(cx: &mut Cx) -> Result<()> {
 }
 
 pub async fn remove(cx: &mut Cx) -> Result<()> {
-    let what = cx
-        .s("id")
-        .or_else(|| cx.s("displayName"))
-        .unwrap_or_else(|| "undefined".into());
+    let what = cx.first_u(&["id", "displayName"]);
     if !cx.proceed(
         "force",
         &format!("Are you sure you want to remove group '{what}'?"),

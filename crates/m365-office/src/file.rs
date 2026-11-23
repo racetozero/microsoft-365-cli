@@ -426,10 +426,7 @@ pub async fn list(cx: &mut Cx) -> Result<()> {
             .and_then(|u| u.get("displayName"))
             .cloned();
         if let Some(o) = f.as_object_mut() {
-            match n {
-                Some(n) => o.insert("lastModifiedByUser".into(), n),
-                None => o.shift_remove("lastModifiedByUser"),
-            };
+            m365_core::json::assign(o, "lastModifiedByUser", n);
         }
     }
     cx.log(Value::Array(files))

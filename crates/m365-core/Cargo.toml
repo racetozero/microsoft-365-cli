@@ -1,0 +1,41 @@
+[package]
+name = "m365-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Runtime of the Rust port of the CLI for Microsoft 365: argument parsing, validation, output, help, HTTP and authentication"
+
+[lints]
+workspace = true
+
+[features]
+# Routes HTTP through the parity checker's mock server (M365_PARITY_MOCK).
+parity = []
+
+[dependencies]
+base64.workspace = true
+chrono.workspace = true
+fancy-regex.workspace = true
+dialoguer = { version = "0.11", default-features = false }
+p12-keystore = "0.1"
+rsa = { version = "0.9", features = ["sha2", "pem"] }
+pkcs8 = { version = "0.10", features = ["encryption", "pem"] }
+unicode-width = "0.2"
+miniz_oxide.workspace = true
+percent-encoding.workspace = true
+regex.workspace = true
+reqwest.workspace = true
+ryu-js.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha1.workspace = true
+sha2.workspace = true
+tokio.workspace = true
+url.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

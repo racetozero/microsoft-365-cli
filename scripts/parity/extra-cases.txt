@@ -1,0 +1,51 @@
+# Extra traced cases (lines starting with "m365 "), beyond the docs examples.
+# spo page: text output, verbose logging and edge paths of the canvas model
+m365 spo page section list --webUrl https://contoso.sharepoint.com/sites/team-a --pageName home.aspx --output text
+m365 spo page section get --webUrl https://contoso.sharepoint.com/sites/team-a --pageName home.aspx --section 3 --output text
+m365 spo page section get --webUrl https://contoso.sharepoint.com/sites/team-a --pageName home.aspx --section 2
+m365 spo page column list --webUrl https://contoso.sharepoint.com/sites/team-a --pageName home.aspx --section 1 --output text
+m365 spo page column get --webUrl https://contoso.sharepoint.com/sites/team-a --pageName home.aspx --section 1 --column 2 --output text
+m365 spo page column get --webUrl https://contoso.sharepoint.com/sites/team-a --pageName home.aspx --section 2 --column 1
+m365 spo page section remove --webUrl https://contoso.sharepoint.com/sites/team-a --pageName home.aspx --section 2 --force --verbose
+m365 spo page section remove --webUrl https://contoso.sharepoint.com/sites/team-a --pageName home.aspx --section 9 --force
+m365 spo page text add --webUrl https://contoso.sharepoint.com/sites/team-a --pageName home --text "<p>Hi</p>" --section 1 --column 2 --order 1 --verbose
+m365 spo page text add --webUrl https://contoso.sharepoint.com/sites/team-a --pageName home.aspx --text Hi --section 1 --column 5
+m365 spo page text add --webUrl https://contoso.sharepoint.com/sites/team-a --pageName home.aspx --text Hi --section 3 --order 9 --debug
+m365 spo page control get --webUrl https://contoso.sharepoint.com/sites/team-a --pageName home.aspx --id 9b1b1e42-794b-4c71-93ac-5ed92488b67f --output text
+m365 spo page control get --webUrl https://contoso.sharepoint.com/sites/team-a --pageName home.aspx --id 11111111-1111-1111-1111-111111111111 --verbose
+m365 spo page control list --webUrl https://contoso.sharepoint.com/sites/team-a --pageName home.aspx --output text
+m365 spo page control remove --webUrl https://contoso.sharepoint.com/sites/team-a --pageName home.aspx --id 3ede60d3-dc2c-438b-b5bf-cc40bb2351e1 --force --verbose
+m365 spo page control remove --webUrl https://contoso.sharepoint.com/sites/team-a --pageName home.aspx --id 3ede60d3-dc2c-438b-b5bf-cc40bb2351e1 --force --draft
+m365 spo page control set --webUrl https://contoso.sharepoint.com/sites/team-a --pageName home --id b3d6ebc9-6c7b-4e1e-99c1-4c08b682e8c1 --innerHtml "<p>New</p>" --verbose
+m365 spo page control set --webUrl https://contoso.sharepoint.com/sites/team-a --pageName home --id 3ede60d3-dc2c-438b-b5bf-cc40bb2351e1 --webPartProperties '{"zoom":7}' --debug
+m365 spo page clientsidewebpart add --webUrl https://contoso.sharepoint.com/sites/team-a --pageName page.aspx --standardWebPart BingMap --section 1 --column 2 --order 1 --verbose
+m365 spo page clientsidewebpart add --webUrl https://contoso.sharepoint.com/sites/team-a --pageName page.aspx --standardWebPart Image --section 2 --column 1 --debug
+m365 spo page clientsidewebpart add --webUrl https://contoso.sharepoint.com/sites/team-a --pageName page.aspx --standardWebPart BingMap --section 9
+m365 spo page clientsidewebpart add --webUrl https://contoso.sharepoint.com/sites/team-a --pageName page.aspx --standardWebPart BingMap --section 1 --column 7
+m365 spo page clientsidewebpart add --webUrl https://contoso.sharepoint.com/sites/team-a --pageName page.aspx --standardWebPart Hero
+m365 spo page section add --webUrl https://contoso.sharepoint.com/sites/team-a --pageName home.aspx --sectionTemplate ThreeColumn --order 2 --verbose
+m365 spo page section add --webUrl https://contoso.sharepoint.com/sites/team-a --pageName home.aspx --sectionTemplate OneColumnFullWidth --order 9
+m365 spo page section add --webUrl https://contoso.sharepoint.com/sites/team-a --pageName home.aspx --sectionTemplate TwoColumnLeft --zoneEmphasis image --imageUrl https://contoso.com/a.jpg --imageWidth 10 --overlayColor "#123456" --overlayOpacity 30 --useLightText
+m365 spo page section add --webUrl https://contoso.sharepoint.com/sites/team-a --pageName home.aspx --sectionTemplate TwoColumnRight --isCollapsibleSection --iconAlignment right --showDivider
+m365 spo page header set --webUrl https://contoso.sharepoint.com/sites/team-a --pageName home.aspx --type None --verbose
+m365 spo page header set --webUrl https://contoso.sharepoint.com/sites/team-a --pageName home.aspx --type Custom --imageUrl "" --translateX 3
+m365 spo page header set --webUrl https://contoso.sharepoint.com/sites/team-a --pageName home.aspx --layout ColorBlock --topicHeader Topic --showTopicHeader true
+m365 spo page get --webUrl https://contoso.sharepoint.com/sites/team-a --name home --verbose
+m365 spo page get --webUrl https://contoso.sharepoint.com/sites/team-a --name home.aspx --output text
+m365 spo page list --webUrl https://contoso.sharepoint.com/sites/team-a --verbose
+m365 spo page add --name new-page --webUrl https://contoso.sharepoint.com/sites/team-a --promoteAs Template --commentsEnabled --verbose
+m365 spo page add --name new-page --webUrl https://contoso.sharepoint.com/sites/team-a --publish --publishMessage "it's done"
+m365 spo page set --name page --webUrl https://contoso.sharepoint.com/sites/team-a --title T --content '[{"controlType":4}]' --verbose
+m365 spo page set --name page.aspx --webUrl https://contoso.sharepoint.com/sites/team-a --promoteAs Template --publish --publishMessage "it's"
+m365 spo page copy --webUrl https://contoso.sharepoint.com/sites/team-a/ --sourceName Home --targetUrl https://contoso.sharepoint.com/sites/b/SitePages/x --verbose
+m365 spo page copy --webUrl https://contoso.sharepoint.com/sites/team-a --sourceName Home --targetUrl https://contoso.sharepoint.com/sites/b
+m365 spo page publish --webUrl https://contoso.sharepoint.com/sites/team-a --name //Styles/Guide --verbose
+m365 spo page remove --webUrl https://contoso.sharepoint.com/sites/team-a --name /x/HR --force --permanent --bypassSharedLock --verbose
+m365 spo page template list --webUrl https://contoso.sharepoint.com/sites/team-a --verbose
+m365 spo page unpublish --webUrl https://contoso.sharepoint.com/sites/team-a --name Guide --verbose
+m365 spo page control get --webUrl https://contoso.sharepoint.com/sites/team-a --pageName home.aspx --id 9b1b1e42-794b-4c71-93ac-5ed92488b67f --output csv
+m365 spo page control get --webUrl https://contoso.sharepoint.com/sites/team-a --pageName home.aspx --id 9b1b1e42-794b-4c71-93ac-5ed92488b67f --output md
+m365 spo page control get --webUrl https://contoso.sharepoint.com/sites/team-a --pageName home.aspx --id 3ede60d3-dc2c-438b-b5bf-cc40bb2351e1 --output csv
+m365 spo page control list --webUrl https://contoso.sharepoint.com/sites/team-a --pageName home.aspx --output csv
+m365 spo page section list --webUrl https://contoso.sharepoint.com/sites/team-a --pageName home.aspx --output csv
+m365 spo page column get --webUrl https://contoso.sharepoint.com/sites/team-a --pageName home.aspx --section 1 --column 1 --output md

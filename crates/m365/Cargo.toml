@@ -1,0 +1,32 @@
+[package]
+name = "m365"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "../../README.md"
+keywords = ["microsoft365", "sharepoint", "entra", "teams", "cli"]
+categories = ["command-line-utilities"]
+description = "m365: a fast native port of the CLI for Microsoft 365"
+
+[lints]
+workspace = true
+
+[features]
+parity = ["m365-core/parity"]
+
+[[bin]]
+name = "m365"
+path = "src/main.rs"
+
+[dependencies]
+m365-core.workspace = true
+m365-cli.workspace = true
+m365-entra.workspace = true
+m365-spo.workspace = true
+m365-teams.workspace = true
+m365-office.workspace = true
+m365-pp.workspace = true
+m365-spfx.workspace = true

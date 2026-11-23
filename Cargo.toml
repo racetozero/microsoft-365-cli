@@ -1,0 +1,79 @@
+[workspace]
+resolver = "2"
+members = [
+  "crates/m365-core",
+  "crates/m365-codegen",
+  "crates/m365-cli",
+  "crates/m365-entra",
+  "crates/m365-spo",
+  "crates/m365-teams",
+  "crates/m365-office",
+  "crates/m365-pp",
+  "crates/m365-spfx",
+  "crates/m365",
+]
+
+[workspace.package]
+version = "12.1.0"
+edition = "2024"
+rust-version = "1.100"
+license = "MIT"
+repository = "https://github.com/racetozero/microsoft-365-cli"
+homepage = "https://github.com/racetozero/microsoft-365-cli"
+
+# The upstream release this port matches. `upstream/commands.json` and
+# `upstream/docs` are extracted from this commit by scripts/refresh-upstream.sh.
+[workspace.metadata.m365]
+repository = "pnp/cli-microsoft365"
+release = "v12.1.0"
+commit = "945ca0d61729c2022780d12f0380e5ac4d882151"
+commit_date = "2026-11-16T07:47:47+01:00"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.cargo]
+redundant_homepage = "allow"
+
+[workspace.lints.clippy]
+dbg_macro = "warn"
+todo = "deny"
+unimplemented = "deny"
+
+[workspace.dependencies]
+m365-core = { path = "crates/m365-core", version = "12.1.0" }
+m365-cli = { path = "crates/m365-cli", version = "12.1.0" }
+m365-entra = { path = "crates/m365-entra", version = "12.1.0" }
+m365-spo = { path = "crates/m365-spo", version = "12.1.0" }
+m365-teams = { path = "crates/m365-teams", version = "12.1.0" }
+m365-office = { path = "crates/m365-office", version = "12.1.0" }
+m365-pp = { path = "crates/m365-pp", version = "12.1.0" }
+m365-spfx = { path = "crates/m365-spfx", version = "12.1.0" }
+base64 = "0.22"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+fancy-regex = "0.14"
+miniz_oxide = "0.8"
+percent-encoding = "2"
+regex = "1"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls-native-roots", "gzip", "deflate", "http2", "charset", "system-proxy", "stream", "multipart"] }
+ryu-js = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+sha1 = "0.10"
+sha2 = "0.10"
+tokio = { version = "1", features = ["rt", "macros", "time", "fs", "io-util", "net", "process", "sync"] }
+url = "2"
+uuid = { version = "1", features = ["v4"] }
+tempfile = "3"
+
+[profile.dev.build-override]
+opt-level = 3
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+strip = "symbols"
+panic = "abort"
+
+[profile.dist]
+inherits = "release"

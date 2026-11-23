@@ -1,0 +1,36 @@
+name: Bug report
+description: Something does not work as documented
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: The command or SDK call, what you expected, and what you got. Remove tokens and private data.
+    validations:
+      required: true
+  - type: textarea
+    id: debug
+    attributes:
+      label: Output with --debug
+      description: Run the command again with `--debug` and paste stderr. Secrets are masked.
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: atl version
+      description: Output of `atl --version`
+    validations:
+      required: true
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Deployment
+      options: [Cloud, Data Center, Both]
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: macOS 15, Ubuntu 24.04, Windows 11, WSL 2

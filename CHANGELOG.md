@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.0.1
 
 First release of the Rust port of CLI for Microsoft 365 v12.1.0.
 

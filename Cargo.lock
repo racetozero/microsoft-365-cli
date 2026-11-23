@@ -1008,7 +1008,7 @@ checksum = "4050469837a6ff301cd14c1f8f24f88549e6d548f24f64e2148eb0f72cebc51f"
 
 [[package]]
 name = "m365"
-version = "12.1.0"
+version = "0.0.1"
 dependencies = [
  "m365-cli",
  "m365-core",
@@ -1023,7 +1023,7 @@ dependencies = [
 
 [[package]]
 name = "m365-cli"
-version = "12.1.0"
+version = "0.0.1"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -1037,14 +1037,14 @@ dependencies = [
 
 [[package]]
 name = "m365-codegen"
-version = "12.1.0"
+version = "0.0.1"
 dependencies = [
  "serde_json",
 ]
 
 [[package]]
 name = "m365-core"
-version = "12.1.0"
+version = "0.0.1"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -1071,7 +1071,7 @@ dependencies = [
 
 [[package]]
 name = "m365-entra"
-version = "12.1.0"
+version = "0.0.1"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -1082,7 +1082,7 @@ dependencies = [
 
 [[package]]
 name = "m365-office"
-version = "12.1.0"
+version = "0.0.1"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -1093,7 +1093,7 @@ dependencies = [
 
 [[package]]
 name = "m365-pp"
-version = "12.1.0"
+version = "0.0.1"
 dependencies = [
  "m365-core",
  "regex",
@@ -1101,7 +1101,7 @@ dependencies = [
 
 [[package]]
 name = "m365-spfx"
-version = "12.1.0"
+version = "0.0.1"
 dependencies = [
  "chrono",
  "m365-core",
@@ -1111,7 +1111,7 @@ dependencies = [
 
 [[package]]
 name = "m365-spo"
-version = "12.1.0"
+version = "0.0.1"
 dependencies = [
  "chrono",
  "m365-core",
@@ -1121,7 +1121,7 @@ dependencies = [
 
 [[package]]
 name = "m365-teams"
-version = "12.1.0"
+version = "0.0.1"
 dependencies = [
  "chrono",
  "m365-core",

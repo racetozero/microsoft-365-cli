@@ -1,0 +1,3 @@
+# Check out text files with LF on every OS. The binary embeds files with
+# include_str!, and the skill tests expect LF front matter.
+* text=auto eol=lf

@@ -39,7 +39,7 @@ fn prints_the_version() {
     let o = m365(&["version"]);
     assert_eq!(
         stdout(&o).trim_end(),
-        concat!("\"v", env!("CARGO_PKG_VERSION"), "\"")
+        format!("\"v{}\"", m365_core::manifest::UPSTREAM_VERSION)
     );
     assert!(o.status.success());
 }

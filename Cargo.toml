@@ -14,7 +14,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.0.1"
+version = "0.0.2"
 edition = "2024"
 rust-version = "1.100"
 license = "MIT"
@@ -41,14 +41,14 @@ todo = "deny"
 unimplemented = "deny"
 
 [workspace.dependencies]
-m365-core = { path = "crates/m365-core", version = "0.0.1" }
-m365-cli = { path = "crates/m365-cli", version = "0.0.1" }
-m365-entra = { path = "crates/m365-entra", version = "0.0.1" }
-m365-spo = { path = "crates/m365-spo", version = "0.0.1" }
-m365-teams = { path = "crates/m365-teams", version = "0.0.1" }
-m365-office = { path = "crates/m365-office", version = "0.0.1" }
-m365-pp = { path = "crates/m365-pp", version = "0.0.1" }
-m365-spfx = { path = "crates/m365-spfx", version = "0.0.1" }
+m365-core = { path = "crates/m365-core", version = "0.0.2" }
+m365-cli = { path = "crates/m365-cli", version = "0.0.2" }
+m365-entra = { path = "crates/m365-entra", version = "0.0.2" }
+m365-spo = { path = "crates/m365-spo", version = "0.0.2" }
+m365-teams = { path = "crates/m365-teams", version = "0.0.2" }
+m365-office = { path = "crates/m365-office", version = "0.0.2" }
+m365-pp = { path = "crates/m365-pp", version = "0.0.2" }
+m365-spfx = { path = "crates/m365-spfx", version = "0.0.2" }
 base64 = "0.22"
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 fancy-regex = "0.14"

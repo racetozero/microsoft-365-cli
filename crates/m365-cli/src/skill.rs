@@ -11,7 +11,7 @@ use m365_core::json::{Obj, stringify};
 use serde_json::Value;
 
 /// Every skill as (name, SKILL.md text). The first one is the core skill.
-pub const SKILLS: [(&str, &str); 9] = [
+pub const SKILLS: [(&str, &str); 10] = [
     ("m365", include_str!("../skills/m365.md")),
     ("m365-admin", include_str!("../skills/m365-admin.md")),
     ("m365-entra", include_str!("../skills/m365-entra.md")),
@@ -23,6 +23,10 @@ pub const SKILLS: [(&str, &str); 9] = [
     ),
     ("m365-spfx", include_str!("../skills/m365-spfx.md")),
     ("m365-spo", include_str!("../skills/m365-spo.md")),
+    (
+        "m365-spo-admin",
+        include_str!("../skills/m365-spo-admin.md"),
+    ),
     ("m365-teams", include_str!("../skills/m365-teams.md")),
 ];
 

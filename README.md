@@ -8,10 +8,10 @@ A [very fast](#performance) command-line tool for Microsoft 365 that you can
 use from your terminal or let your AI agent use for you.
 
 `m365` works with Entra ID, SharePoint, Teams, Outlook, Planner, To Do,
-OneDrive, Power Platform, Power Automate, Purview, Viva Engage and SharePoint
-Framework projects. It has the same 888 commands as
-[CLI for Microsoft 365](https://pnp.github.io/cli-microsoft365/), so scripts
-written for that tool keep working.
+OneDrive, SharePoint Embedded, Power Platform, Power Apps, Power Automate,
+Purview, Viva and SharePoint Framework projects. It has the same 888 commands
+as [CLI for Microsoft 365](https://pnp.github.io/cli-microsoft365/), so
+scripts written for that tool keep working.
 
 Claude Code, Codex, Cursor and other agents can find users, update SharePoint
 lists and post to Teams with the same commands you type, through a JSON mode
@@ -21,7 +21,8 @@ that never stops to ask a question, and installable skills.
 m365 entra user get --userName jane@contoso.com
 ```
 
-That command shows one user. Most of what you do in `m365` reads like that.
+That command shows one user. Most of what you do in `m365` reads like that:
+`m365 <suite> <resource> <verb>`, with options in camelCase.
 
 ## Why m365
 
@@ -30,9 +31,10 @@ That command shows one user. Most of what you do in `m365` reads like that.
 - **Agent ready.** Add `--agent` and every command prints one JSON line.
   Nothing prompts. When a value is missing, the error names the option to add.
   Commands that remove things wait for `--force`.
-- **Skills for your agent.** One core skill and one per area teach the
-  commands. Install them with `npx skills add racetozero/microsoft-365-cli`
-  or `m365 skill --install`.
+- **Skills for your agent.** One core skill and nine for the areas of
+  Microsoft 365 teach the commands, their nuances and a map of every command.
+  Install them with `npx skills add racetozero/microsoft-365-cli` or
+  `m365 skill --install`.
 - **The commands you already know.** All 888 commands of CLI for Microsoft 365,
   with the same options, output and errors. A test harness compares the two
   tools on every command.
@@ -42,9 +44,10 @@ That command shows one user. Most of what you do in `m365` reads like that.
 - **Every API, not only the common ones.** `m365 request` calls any Microsoft
   Graph or SharePoint REST endpoint with your normal login.
 - **SharePoint Framework helpers.** Upgrade an SPFx project to a newer version,
-  check it for problems, and add a deployment pipeline.
+  check it for problems, and add a deployment pipeline, all offline.
 - **Every sign-in your company uses.** Device code, browser, certificates,
-  client secrets, managed identity and federated credentials.
+  client secrets, managed identity and federated credentials, in the public
+  and government clouds.
 - **One file, kept current.** A single native binary with no Node.js to set
   up. `m365 update` installs new releases.
 - **Private by design.** `m365` collects no telemetry.
@@ -90,7 +93,8 @@ m365 update
 `m365 update --check` only reports whether a newer release exists. In a
 terminal, `m365` checks for a new release at most once every 20 hours, in
 the background, and prints one line after a command when there is one. Set
-`M365_NO_UPDATE_NOTIFIER=1` to turn the notice off.
+`M365_NO_UPDATE_NOTIFIER=1` to turn the notice off. The check never runs in
+CI or in agent mode.
 
 Homebrew on macOS and Linux:
 
@@ -103,79 +107,185 @@ Homebrew owns this binary, so `m365 update` runs
 set `M365_SELF_UPDATE_COMMAND`, for example
 `mise use -g github:racetozero/microsoft-365-cli@{version}`.
 
-## Start in two commands
+## Start in three commands
 
-Sign in, then run a command:
+`m365` signs in through a Microsoft Entra app registration in your tenant.
+Create one, sign in, then run a command:
 
 ```sh
+m365 setup
 m365 login
 m365 entra user get --userName jane@contoso.com
 ```
 
-`m365 login` shows a code and a web address. Open the address in any browser,
-enter the code and sign in. This works over SSH too. `m365 status` shows who
-you're signed in as.
+`m365 setup` asks a few questions, creates the app (or uses one you already
+have), and saves its ID. `m365 login` shows a code and a web address. Open the
+address in any browser, enter the code and sign in. This works over SSH too.
+`m365 status` shows who you're signed in as.
 
-To see every command, run `m365 --help`, then add `--help` to a group or a
-command (`m365 spo --help`, `m365 spo web get --help`). `-h examples`,
-`-h options` and `-h permissions` show one part of a command's help.
-
-## A few examples
-
-**Find people and groups.** Look up a user, then see the groups they're in:
+If your administrator gave you an app, skip `setup` and name it when you sign
+in:
 
 ```sh
-m365 entra user get --userName jane@contoso.com
-m365 entra user list --department Sales --query "[].userPrincipalName"
-m365 entra group member list --groupName "Sales" --role Owner
+m365 login --appId 31359c7f-bd7e-475c-86db-fdb8c937548e --tenant contoso.onmicrosoft.com
 ```
 
-**Work with SharePoint lists.** Add an item, then change it. Field values are
+## Work in the terminal
+
+- Run `m365 --help` to see every suite, then add `--help` to a suite or a
+  command (`m365 spo --help`, `m365 spo web get --help`).
+- Add `-h examples`, `-h options`, `-h remarks` or `-h permissions` to show
+  one part of a command's help.
+- Commands print JSON. Add `--output text`, `csv` or `md` for other formats,
+  or `none` to print nothing.
+- Add `--query` with a [JMESPath](https://jmespath.org) expression to keep
+  only what you need: `--query "[].userPrincipalName"`.
+- Leave out a required value and `m365` asks for it, or lets you pick one when
+  several items match a name.
+- Add `--debug` to see each HTTP request and response, or `--verbose` to see
+  progress.
+- Run `m365 cli completion sh setup` once for tab completion in Zsh, Bash and
+  Fish. PowerShell uses `m365 cli completion pwsh setup --profile $PROFILE`.
+
+## Work across Microsoft 365
+
+### Entra ID
+
+Users, guests, groups, Microsoft 365 groups, app registrations, enterprise
+apps, API permissions, licenses, sign-ins, roles, Privileged Identity
+Management and administrative units.
+
+```sh
+m365 entra user list --department Sales --query "[].userPrincipalName"
+m365 entra user add --displayName "Jane Doe" --userName jane@contoso.com --password "P@ssw0rd!" --forceChangePasswordNextSignIn
+m365 entra group member add --groupName "Sales" --userNames jane@contoso.com --role Member
+m365 entra app add --name "Reports app" --withSecret --apisDelegated "https://graph.microsoft.com/User.Read" --grantAdminConsent
+m365 entra pim role assignment add --roleDefinitionName "Global Reader" --userName jane@contoso.com --duration PT8H --justification "Quarterly audit"
+```
+
+### SharePoint
+
+Sites, lists, items, views, fields, content types, files, folders, versions,
+sharing links, pages, navigation, permissions and search. Field values are
 options named after the field:
 
 ```sh
+m365 spo site add --type CommunicationSite --title "Sales" --url https://contoso.sharepoint.com/sites/sales
 m365 spo listitem add --webUrl https://contoso.sharepoint.com/sites/sales --listTitle Projects --Title "New site" --Status Open
-m365 spo listitem set --webUrl https://contoso.sharepoint.com/sites/sales --listTitle Projects --id 3 --Status Done
-```
-
-**Upload and find files:**
-
-```sh
+m365 spo listitem list --webUrl https://contoso.sharepoint.com/sites/sales --listTitle Projects --filter "Status eq 'Open'" --fields Title,Status
 m365 spo file add --webUrl https://contoso.sharepoint.com/sites/sales --folder "Shared Documents" --path ./report.pdf
 m365 spo search --queryText "quarterly report" --selectProperties Title,Path
 ```
 
-**Post to Teams:**
+SharePoint administrators can also manage tenant settings, app catalogs and
+apps, hub sites, site designs and scripts, themes, the CDN, the term store,
+API access requests and SharePoint Premium models:
 
 ```sh
-m365 teams message send --teamId TEAM_ID --channelId CHANNEL_ID --message "Deployed v2.3"
-m365 teams chat message send --userEmails jane@contoso.com --message "Done"
+m365 spo app add --filePath ./solution.sppkg --overwrite
+m365 spo app deploy --name solution.sppkg --skipFeatureDeployment
+m365 spo hubsite register --siteUrl https://contoso.sharepoint.com/sites/sales
+m365 spo tenant settings list
 ```
 
-**Send mail and plan work:**
+### Teams
+
+Teams, channels, tabs, members, channel messages and replies, chats,
+meetings, transcripts, attendance reports, call records, apps and team
+settings.
+
+```sh
+m365 teams team add --name "Sales" --description "Sales team" --wait
+m365 teams channel add --teamName "Sales" --name "Deals"
+m365 teams message send --teamId <TEAM_ID> --channelId <CHANNEL_ID> --message "Deployed v2.3"
+m365 teams chat message send --userEmails jane@contoso.com --message "Done"
+m365 teams meeting list --startDateTime 2026-01-01T00:00:00Z
+```
+
+### Outlook, Planner and To Do
+
+Mail, folders, calendars, events, rooms, Planner plans, buckets, tasks and
+rosters, To Do lists and tasks, Bookings businesses and OneNote notebooks.
 
 ```sh
 m365 outlook mail send --to jane@contoso.com --subject "Report" --bodyContents "See attached" --attachment ./report.pdf
+m365 outlook event add --subject "Sync" --start 2026-01-10T09:00:00 --end 2026-01-10T09:30:00 --timeZone "W. Europe Standard Time" --requiredAttendees jane@contoso.com --isOnlineMeeting --onlineMeetingProvider teamsForBusiness
 m365 planner task add --title "Call client" --planTitle "Q1" --ownerGroupName "Sales" --bucketName "To do"
+m365 todo task add --title "Renew license" --listName Tasks
 ```
 
-**Upgrade an SPFx project.** Run it in the project folder to get every step as
-a Markdown report:
+### Files and SharePoint Embedded
+
+Copy, move and convert files in any document library through Microsoft Graph,
+list OneDrive sites, and manage SharePoint Embedded container types,
+containers, permissions and recycle bins.
 
 ```sh
-m365 spfx project upgrade --output md > upgrade.md
+m365 file move --webUrl https://contoso.sharepoint.com/sites/sales --sourceUrl "Shared Documents/a.docx" --targetUrl "Shared Documents/Archive"
+m365 file convert pdf --sourceFile "https://contoso.sharepoint.com/sites/sales/Shared Documents/a.docx" --targetFile ./a.pdf
+m365 spe container list --containerTypeName "Projects"
 ```
+
+### Power Platform
+
+Environments, solutions and publishers, Dataverse tables, Copilot Studio
+agents, AI Builder models, gateways, Power Pages sites, Power Apps and their
+owners, connectors, and Power Automate flows with their runs and owners.
+
+```sh
+m365 pp environment list --asAdmin
+m365 pp solution list --environmentName Default-1e852b49-bf4b-4ba5-bcd4-a8c4706c8ed4
+m365 flow run list --environmentName Default-1e852b49-bf4b-4ba5-bcd4-a8c4706c8ed4 --flowName 5923cb07-ce1a-4a5c-ab81-257ce820109a --status Failed
+m365 pa app export --name 3989cb59-ce1a-4a5c-bb78-257c5c39381d --environmentName Default-1e852b49-bf4b-4ba5-bcd4-a8c4706c8ed4
+```
+
+### Tenant, Purview and Viva
+
+Tenant information, service health and messages, usage reports for every
+service, profile card properties, Purview retention labels and events,
+sensitivity labels and the audit log, Viva Engage communities and messages,
+Microsoft Search connectors, Graph extensions and subscriptions, and Adaptive
+Cards.
+
+```sh
+m365 tenant serviceannouncement health list
+m365 teams report useractivityuserdetail --period D30 --output csv > teams.csv
+m365 purview auditlog list --contentType SharePoint --verbose
+m365 viva engage message add --body "Welcome" --groupId 31158067
+m365 adaptivecard send --url <WEBHOOK_URL> --title "Deployed" --description "v2.3 is live"
+```
+
+### SharePoint Framework
+
+Run these in an SPFx project folder. They read the project, work offline, and
+print each finding with the command or code that fixes it:
+
+```sh
+m365 spfx doctor --output text
+m365 spfx project doctor --output md
+m365 spfx project upgrade --output md > upgrade.md
+m365 spfx project github workflow add
+```
+
+`spfx project upgrade` also writes a [CodeTour](https://github.com/microsoft/codetour)
+with `--output tour`.
 
 ## When there's no command for it
 
 The commands cover common work. For everything else, `m365 request` sends an
-authenticated request to Microsoft Graph or SharePoint. You use your normal
-login, and you don't write any HTTP code.
+authenticated request to Microsoft Graph, SharePoint or another API protected
+by Entra ID. You use your normal login, and you don't write any HTTP code.
+`m365` handles compression and throttling.
 
 ```sh
-m365 request --url "https://graph.microsoft.com/v1.0/me/onlineMeetings"
+m365 request --url "@graph/me/onlineMeetings"
 m365 request --url "https://contoso.sharepoint.com/sites/sales/_api/web" --method get
+m365 request --url "@graph/me/events" --method post --content-type "application/json" --body @event.json
 ```
+
+`@graph`, `@graphbeta` and `@spo` stand for the Graph v1.0 and beta endpoints
+and your SharePoint root. Add headers as options, such as `--if-match "*"`.
+`m365 util accesstoken get --resource graph` prints a token for another tool.
 
 ## Sign in
 
@@ -184,16 +294,45 @@ m365 request --url "https://contoso.sharepoint.com/sites/sales/_api/web" --metho
 - **People:** device code (the default), the system browser, or a user name
   and password.
 - **Apps and automation:** certificates, client secrets, Azure managed
-  identity and federated credentials such as GitHub Actions OIDC.
+  identity and federated credentials from GitHub Actions, Azure DevOps and
+  GitLab CI/CD.
 
-Logins are saved in your home folder (`~/.cli-m365-connection.json`). You can
-keep several and switch between them with `m365 connection use`.
+```sh
+m365 login --authType certificate --certificateFile ./app.pem --appId <APP_ID> --tenant <TENANT_ID>
+m365 login --authType federatedIdentity --appId <APP_ID> --tenant <TENANT_ID>
+m365 login --authType identity
+```
+
+Add `--cloud USGov`, `USGovHigh`, `USGovDoD` or `China` to sign in to a
+government cloud, with an app registered in that cloud. `m365 login --ensure`
+signs in only when you're not signed in yet.
+
+### Multiple accounts
+
+Each sign-in is saved as a connection. Name it when you sign in, then switch:
+
+```sh
+m365 login --connectionName contoso
+m365 connection list
+m365 connection use --name contoso
+```
+
+Logins are saved in your home folder (`~/.cli-m365-connection.json` and
+`~/.cli-m365-all-connections.json`) and are shared with the Node.js CLI, so a
+login made with either works for both.
+
+### More permissions
+
+The app that `setup` creates asks for a minimal set of permissions.
+`m365 cli app add --scopes all --saveToConfig` creates one with every scope the
+commands use, and `m365 cli app reconsent` adds scopes that a newer release
+needs. Viva Engage needs one more consent: `m365 cli consent --service VivaEngage`.
 
 ## For scripts and AI agents
 
-Every command prints JSON by default, and `--output text`, `csv` or `md`
-change that. `--query` keeps only what you need. With `--agent`, every command
-prints one short JSON line, and `m365` never stops to ask a question.
+Every command prints JSON by default, and `--query` keeps only what you need.
+With `--agent` (or `M365_AGENT=1`), every command prints one short JSON line,
+and `m365` never stops to ask a question.
 
 ```json
 {"ok":true,"command":"entra user get","data":{"displayName":"Jane Doe","id":"..."}}
@@ -202,22 +341,122 @@ prints one short JSON line, and `m365` never stops to ask a question.
 
 If an agent leaves out a value, the error lists the options it can use, so the
 agent can retry once and succeed. A command that removes something fails with
-`confirmation_required` until the agent adds `--force`.
-`m365 <command> --help --agent` describes a command's options, rules and
-examples as JSON.
+`confirmation_required` until the agent adds `--force`. Options are checked
+before the sign-in, so an agent finds its mistakes without a network call.
 
-Agent skills teach your agent the commands. There is one core skill and one
-for each area: Entra ID, SharePoint, Teams, Outlook and Planner, files, Power
-Platform, SharePoint Framework and tenant administration. Install them with
-the [skills](https://github.com/vercel-labs/skills) CLI, which works with
-Claude Code, Codex, Cursor and other agents, or with `m365` itself:
+| Exit code | Meaning                  |
+| --------: | ------------------------ |
+|         0 | Success                  |
+|         1 | Command or API error     |
+|         2 | Not signed in            |
+|         3 | Invalid or missing input |
+|         4 | Unknown command          |
+|         5 | Internal error           |
+
+`m365 <command> --help --agent` describes a command's options, rules,
+examples and permissions as JSON.
+
+### Agent skills
+
+Agent skills teach your agent the commands. Each one has the common tasks,
+the nuances that trip agents up, and a map of every command in its area.
+
+| Skill                 | Covers                                                                 |
+| --------------------- | ---------------------------------------------------------------------- |
+| `m365`                | Agent mode, errors, sign-in, `request`, settings, folder context       |
+| `m365-entra`          | Users, groups, apps, permissions, licenses, roles, PIM                 |
+| `m365-spo`            | SharePoint sites, lists, items, files, pages, permissions, search      |
+| `m365-spo-admin`      | SharePoint tenant settings, apps, hub sites, designs, term store, CDN  |
+| `m365-teams`          | Teams, channels, messages, chats, meetings, apps                       |
+| `m365-outlook`        | Mail, calendars, Planner, To Do, Bookings, OneNote                     |
+| `m365-files`          | Files through Graph, OneDrive, SharePoint Embedded                     |
+| `m365-power-platform` | Environments, solutions, Dataverse, Power Apps, Power Automate         |
+| `m365-spfx`           | SharePoint Framework doctor, upgrade, pipelines, packages              |
+| `m365-admin`          | Tenant, service health, usage reports, Purview, Viva, Graph connectors |
+
+Install them with the [skills](https://github.com/vercel-labs/skills) CLI,
+which works with Claude Code, Codex, Cursor and other agents, or with `m365`
+itself:
 
 ```sh
 npx skills add racetozero/microsoft-365-cli     # or: bunx skills add racetozero/microsoft-365-cli
-m365 skill --install                                # writes them to .claude/skills/
+m365 skill --install                            # writes them to .claude/skills/
 ```
 
-The skills are also in [`.agents/skills`](.agents/skills).
+`m365 skill m365-spo` prints one skill and `m365 skill --list` lists them. The
+skills are also in [`.agents/skills`](.agents/skills).
+
+## Configuration
+
+### Settings
+
+`m365 cli config set` changes a default for every command:
+
+```sh
+m365 cli config set --key output --value text
+m365 cli config list
+m365 cli config reset --key output
+```
+
+| Key                         | Default      | Purpose                                              |
+| --------------------------- | ------------ | ---------------------------------------------------- |
+| `output`                    | `json`       | Output format: `json`, `text`, `csv`, `md` or `none` |
+| `errorOutput`               | `stderr`     | Where errors go; `stdout` is easier in PowerShell    |
+| `prompt`                    | `true`       | Ask for missing values                               |
+| `helpMode`                  | `options`    | The part of the help that `--help` shows             |
+| `authType`                  | `deviceCode` | The sign-in method for `m365 login`                  |
+| `clientId`, `tenantId`      |              | The app and tenant for `m365 login`                  |
+| `autoOpenLinksInBrowser`    | `false`      | Open sign-in and portal links in the browser         |
+| `copyDeviceCodeToClipboard` | `false`      | Copy the device code when you sign in                |
+| `showHelpOnFailure`         | `true`       | Show a command's help after it fails                 |
+| `csvHeader`, `csvQuoted`    |              | CSV header and quoting                               |
+
+`m365 setup --interactive` and `m365 setup --scripting` apply a preset of
+these settings without asking questions.
+
+### Default values for a folder
+
+A `.m365rc.json` file in a folder holds default option values for commands
+you run there. Set a site once and leave `--webUrl` out:
+
+```sh
+m365 context init
+m365 context option set --name webUrl --value https://contoso.sharepoint.com/sites/sales
+m365 spo list list
+```
+
+`m365 entra app add --save` stores a new app in the same file. Then
+`m365 app permission add` and `m365 app open` work on that app.
+
+### Files
+
+| Path                                         | Purpose                               |
+| -------------------------------------------- | ------------------------------------- |
+| `~/.cli-m365-connection.json`                | The active login                      |
+| `~/.cli-m365-all-connections.json`           | All saved logins                      |
+| `~/.config/configstore/cli-m365-config.json` | Settings from `m365 cli config set`   |
+| `.m365rc.json`                               | Default options and apps for a folder |
+
+### Environment variables
+
+| Variable                     | Purpose                              |
+| ---------------------------- | ------------------------------------ |
+| `M365_AGENT`                 | Turn on agent mode for every command |
+| `CLIMICROSOFT365_ENTRAAPPID` | The app ID for `m365 login`          |
+| `CLIMICROSOFT365_TENANT`     | The tenant for `m365 login`          |
+| `M365_NO_BROWSER`            | Never open a browser                 |
+| `M365_NO_UPDATE_NOTIFIER`    | Turn off the new release notice      |
+| `M365_SELF_UPDATE_COMMAND`   | The command that `m365 update` runs  |
+
+## Diagnose problems
+
+`m365 cli doctor` reports your operating system, `m365` version, sign-in
+type, app, tenant, roles, scopes and settings, without secrets. Add `--debug`
+to a failing command to see each request and response.
+
+Report problems with `m365` itself at
+[github.com/racetozero/microsoft-365-cli/issues](https://github.com/racetozero/microsoft-365-cli/issues),
+and attach the `m365 cli doctor` output.
 
 ## Performance
 
@@ -314,7 +553,7 @@ projects. It also checks that every command's help is complete. All 888
 commands match.
 
 Help is the one intended difference: `m365` has its own help layout (see
-[Start in two commands](#start-in-two-commands)).
+[Work in the terminal](#work-in-the-terminal)).
 
 ## Development
 
@@ -338,6 +577,16 @@ release, build its checkout in `/tmp/cli-microsoft365` and regenerate both:
 node scripts/extract-upstream.mjs /tmp/cli-microsoft365 > target/commands.json
 cargo run -q -p m365-codegen -- target/commands.json
 node scripts/gen-help.mjs /tmp/cli-microsoft365 target/commands.json
+```
+
+The agent skills live in `.agents/skills/<name>/SKILL.md`, and the binary
+embeds copies from `crates/m365-cli/skills/`. After you edit a skill, copy it
+and run the tests, which check that every `m365` command a skill names exists
+with those options:
+
+```bash
+M365_UPDATE_SKILLS=1 cargo test -p m365-cli skill
+cargo test -p m365-cli skill
 ```
 
 ## Release

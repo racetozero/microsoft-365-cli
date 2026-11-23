@@ -286,7 +286,7 @@ fn homebrew_brew() -> Option<PathBuf> {
 }
 
 fn http_client() -> Result<reqwest::Client, String> {
-    reqwest::Client::builder()
+    m365_core::http::client_builder()
         .timeout(Duration::from_secs(10))
         .user_agent(concat!("m365/", env!("CARGO_PKG_VERSION")))
         .build()
@@ -301,7 +301,12 @@ async fn fetch_latest_version(client: &reqwest::Client) -> Result<Version, Strin
         .header("X-GitHub-Api-Version", "2022-11-28")
         .send()
         .await
-        .map_err(|e| format!("cannot check the latest m365 release on GitHub: {e}"))?
+        .map_err(|e| {
+            format!(
+                "cannot check the latest m365 release on GitHub: {}",
+                m365_core::http::error_chain(&e)
+            )
+        })?
         .error_for_status()
         .map_err(|e| format!("GitHub did not return the latest m365 release: {e}"))?
         .json()
@@ -335,7 +340,12 @@ async fn download_installer(
         .get(&url)
         .send()
         .await
-        .map_err(|e| format!("cannot download the m365 installer from {url}: {e}"))?
+        .map_err(|e| {
+            format!(
+                "cannot download the m365 installer from {url}: {}",
+                m365_core::http::error_chain(&e)
+            )
+        })?
         .error_for_status()
         .map_err(|e| format!("the m365 installer is not available at {url}: {e}"))?
         .bytes()

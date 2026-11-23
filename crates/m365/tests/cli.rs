@@ -136,3 +136,13 @@ fn completion_prints_the_shell_script() {
     assert!(o.status.success());
     assert!(stdout(&o).contains("--compgen"), "{}", stdout(&o));
 }
+
+#[test]
+fn tls_trusts_only_the_os_certificate_store() {
+    let lock = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../Cargo.lock"))
+        .expect("read Cargo.lock");
+    assert!(
+        !lock.contains("name = \"webpki-roots\""),
+        "Cargo.lock contains webpki-roots, the bundled Mozilla root certificates, but m365 must trust only the OS certificate store. Run `cargo tree -i webpki-roots` to find the dependency that adds it, and turn off its webpki-roots feature."
+    );
+}

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.0.2
+
+- Every HTTPS request trusts the OS certificate store (rustls-native-certs), never a bundled root list, so certificates that corporate proxies install on the OS work. A test fails if Mozilla's `webpki-roots` enters the build.
+- `NODE_EXTRA_CA_CERTS` adds the CA certificates in a PEM file, as in Node.js. A file that cannot be read gives a warning and is ignored. `SSL_CERT_FILE` and `SSL_CERT_DIR` replace the OS store, as before.
+- A failed request now shows its cause, for example `invalid peer certificate: UnknownIssuer`.
+- Windows x86_64 release builds are profile-guided again.
+
 ## 0.0.1
 
 First release of the Rust port of CLI for Microsoft 365 v12.1.0.

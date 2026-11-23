@@ -214,10 +214,48 @@ impl Request {
     }
 }
 
+/// The builder for every HTTPS client. It trusts the OS certificate store
+/// (through rustls-native-certs, never a bundled root list) and the CA
+/// certificates in `NODE_EXTRA_CA_CERTS`, which Node.js also reads.
+pub fn client_builder() -> reqwest::ClientBuilder {
+    static EXTRA: OnceLock<Vec<reqwest::Certificate>> = OnceLock::new();
+    let extra = EXTRA.get_or_init(|| {
+        let Some(path) = std::env::var_os("NODE_EXTRA_CA_CERTS").filter(|p| !p.is_empty()) else {
+            return Vec::new();
+        };
+        let loaded = std::fs::read(&path)
+            .map_err(|e| e.to_string())
+            .and_then(|pem| reqwest::Certificate::from_pem_bundle(&pem).map_err(|e| e.to_string()));
+        loaded.unwrap_or_else(|e| {
+            eprintln!(
+                "Warning: Ignoring extra certs from `{}`, load failed: {e}. Set NODE_EXTRA_CA_CERTS to a readable PEM file of CA certificates, or unset it.",
+                std::path::Path::new(&path).display()
+            );
+            Vec::new()
+        })
+    });
+    extra.iter().cloned().fold(
+        reqwest::Client::builder().tls_built_in_native_certs(true),
+        reqwest::ClientBuilder::add_root_certificate,
+    )
+}
+
+/// The error and its causes. reqwest's own message hides the cause, such as
+/// an untrusted certificate.
+pub fn error_chain(e: &dyn std::error::Error) -> String {
+    let mut msg = e.to_string();
+    let mut cause = e.source();
+    while let Some(c) = cause {
+        msg = format!("{msg}: {c}");
+        cause = c.source();
+    }
+    msg
+}
+
 fn client() -> &'static reqwest::Client {
     static C: OnceLock<reqwest::Client> = OnceLock::new();
     C.get_or_init(|| {
-        reqwest::Client::builder()
+        client_builder()
             .gzip(true)
             .deflate(true)
             .redirect(reqwest::redirect::Policy::limited(5))
@@ -429,7 +467,7 @@ async fn transport(
             b = b.body(bytes.clone());
         }
     }
-    let res = b.send().await.map_err(|e| e.to_string())?;
+    let res = b.send().await.map_err(|e| error_chain(&e))?;
     let status = res.status();
     let mut h = Obj::new();
     for (k, v) in res.headers() {
